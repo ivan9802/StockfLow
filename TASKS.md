@@ -20,7 +20,7 @@ Dernière mise à jour : 13/11/2026.
 | ID | Tâche | Agent | Priorité | Statut | Dépendances | Résultat attendu | Critères de validation |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
 | T-101 | Analyse du cahier des charges, exigences, user stories, backlog produit, cas d'utilisation, classes métier | PO | Haute | En revue | T-004 | `docs/01-analysis/requirements.md` | Cohérent avec `database-design.md` et `DECISIONS.md` ; chaque story a des critères testables |
-| T-102 | Validation par l'utilisateur des décisions proposées (D-001 à D-003, D-006 à D-009, D-016) | CTO | Haute | En cours | T-101, T-201 | Statuts mis à jour dans `DECISIONS.md` | Accord explicite de l'utilisateur |
+| T-102 | Validation par l'utilisateur des décisions proposées (D-001 à D-003, D-006 à D-009, D-016) | CTO | Haute | Terminé | T-101, T-201 | Statuts mis à jour dans `DECISIONS.md` | Accord explicite de l'utilisateur |
 
 ## Phase 2 : architecture et conception
 
@@ -36,7 +36,7 @@ Dernière mise à jour : 13/11/2026.
 
 | ID | Tâche | Agent | Priorité | Statut | Dépendances | Résultat attendu | Critères de validation |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-| T-301 | Environnement Docker Compose (PHP-FPM, Nginx, MySQL, Node) | OPS | Haute | Bloqué | T-102 | `compose.yaml`, `docker/` | `docker compose up` démarre ; `php -v` et `mysql --version` dans les conteneurs. Bloqué tant que D-001 à D-003 ne sont pas tranchées et que le démon Docker est arrêté |
+| T-301 | Environnement Docker Compose (PHP-FPM, Nginx, MySQL, Node) | OPS | Haute | En cours | T-102 | `compose.yaml`, `docker/` | `docker compose up` démarre ; `php -v` et `mysql --version` dans les conteneurs. Bloqué tant que D-001 à D-003 ne sont pas tranchées et que le démon Docker est arrêté |
 | T-302 | Création du projet Laravel, `.env.example`, locale `fr`, fuseau `Africa/Abidjan`, Vite et Bootstrap 5 | BE, FE | Haute | À faire | T-301 | Squelette qui s'affiche | Page d'accueil servie en HTTP 200 ; `npm run build` sans erreur |
 | T-303 | Migrations de toutes les tables, contraintes `CHECK`, index | DB | Haute | À faire | T-302 | `database/migrations/` | `php artisan migrate:fresh` sans erreur sur MySQL ; contraintes vérifiées par test |
 | T-304 | Modèles Eloquent, enums, relations, factories | BE | Haute | À faire | T-303 | `app/Models`, `app/Enums`, `database/factories` | Tests unitaires des relations |

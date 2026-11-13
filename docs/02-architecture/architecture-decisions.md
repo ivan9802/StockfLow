@@ -25,7 +25,7 @@ Les dates de support de Laravel viennent de laravel.com/docs/releases, consulté
 
 ## ADR-001 : version de Laravel et de PHP
 
-Statut : Proposée
+Statut : Acceptée
 
 Date : 13/11/2026
 
@@ -68,7 +68,7 @@ La décision appartient à l'utilisateur. Elle modifie une exigence écrite du c
 
 ## ADR-002 : base de données
 
-Statut : Proposée
+Statut : Acceptée
 
 Date : 13/11/2026
 
@@ -100,7 +100,7 @@ Proposition : option C, MySQL 8.4 LTS dans Docker pour le développement, les te
 
 ## ADR-003 : environnement Docker Compose
 
-Statut : Proposée
+Statut : Acceptée
 
 Date : 13/11/2026
 
@@ -177,7 +177,7 @@ Conséquences : ajouter un profil demande une modification de code et une migrat
 
 ## ADR-006 : transfert exécuté en une seule étape
 
-Statut : Proposée
+Statut : Acceptée
 
 Date : 13/11/2026
 
@@ -205,7 +205,7 @@ Proposition : option A. Le transfert est saisi quand la marchandise change effec
 
 ## ADR-007 : inventaire sans gel des mouvements
 
-Statut : Proposée
+Statut : Acceptée
 
 Date : 13/11/2026
 
@@ -246,7 +246,7 @@ Dans tous les cas :
 
 ## ADR-008 : seuils d'alerte
 
-Statut : Proposée
+Statut : Acceptée
 
 Date : 13/11/2026
 
@@ -254,13 +254,13 @@ Contexte : avec le stock par emplacement (ADR-004), la formule du cahier (`quant
 
 Options : un seuil unique comparé au stock total ; un seuil par emplacement seulement ; les deux. Le seuil total répond à la question « faut-il commander au fournisseur ? ». Il ne voit pas une boutique vide quand l'entrepôt est plein. Le seuil par emplacement seul oblige à saisir deux valeurs pour chacune des 800 références.
 
-Décision proposée : `products.alert_threshold` est comparé au stock total. `stock_levels.reorder_point`, facultatif, est comparé au stock de son emplacement et sert au réassort de la boutique depuis l'entrepôt.
+Décision : `products.alert_threshold` est comparé au stock total. `stock_levels.reorder_point`, facultatif, est comparé au stock de son emplacement et sert au réassort de la boutique depuis l'entrepôt.
 
 Conséquences : deux portées d'alerte à distinguer dans les notifications et au tableau de bord. La comparaison reste « inférieur ou égal », comme dans le cahier. Un produit dont le seuil vaut zéro n'alerte qu'en rupture.
 
 ## ADR-009 : séparation des tâches
 
-Statut : Proposée
+Statut : Acceptée
 
 Date : 13/11/2026
 
@@ -268,7 +268,7 @@ Contexte : le cahier réserve à l'administrateur la validation des écarts d'in
 
 Options : laisser chaque profil corriger ses propres opérations, ce qui est plus simple mais permet de masquer une erreur ou un détournement ; ou imposer qu'une correction soit faite par un autre profil.
 
-Décision proposée : la validation d'un inventaire est réservée à l'administrateur. L'annulation d'une vente est réservée à l'administrateur et au gestionnaire de stock. Le vendeur ne vend que depuis son emplacement d'affectation (`users.warehouse_id`).
+Décision : la validation d'un inventaire est réservée à l'administrateur. L'annulation d'une vente est réservée à l'administrateur et au gestionnaire de stock. Le vendeur ne vend que depuis son emplacement d'affectation (`users.warehouse_id`).
 
 Conséquences : `users.warehouse_id` est obligatoire pour un vendeur. Un vendeur qui se trompe doit faire annuler sa vente par un autre profil, ce qui suppose qu'un gestionnaire soit joignable pendant les heures d'ouverture. Ces règles sont portées par `SalePolicy` et `InventorySessionPolicy` et testées par rôle. Le cas d'un administrateur qui compte puis valide lui-même n'est pas interdit par cette décision.
 
@@ -358,7 +358,7 @@ Conséquences : la politique CSP interdit l'attribut `style`, donc les barres ut
 
 ## ADR-016 : réception directe sans commande fournisseur
 
-Statut : Proposée
+Statut : Acceptée
 
 Date : 13/11/2026
 
@@ -366,7 +366,7 @@ Contexte : le circuit normal est la commande fournisseur suivie d'une ou plusieu
 
 Options : imposer une commande avant toute entrée, ce qui pousse à créer des commandes fictives après coup ; ou accepter une entrée directe rattachée à un fournisseur.
 
-Décision proposée : un bon de réception peut exister sans commande (`goods_receipts.purchase_order_id` nul). Il reste rattaché à un fournisseur, à un emplacement et à un utilisateur, et produit les mêmes mouvements de type `purchase`.
+Décision : un bon de réception peut exister sans commande (`goods_receipts.purchase_order_id` nul). Il reste rattaché à un fournisseur, à un emplacement et à un utilisateur, et produit les mêmes mouvements de type `purchase`.
 
 Conséquences : `PurchaseService` expose `receiveDirect` à côté de `receive`. Les états d'achats doivent distinguer les réceptions sur commande des réceptions directes. Un excédent livré sur une commande se saisit en réception directe, puisque le cumul reçu ne peut pas dépasser le commandé. L'accès suit les mêmes droits que la réception sur commande.
 
@@ -386,7 +386,7 @@ Conséquences : aucune ligne n'est modifiée après insertion. Les numéros se s
 
 ## ADR-018 : pas d'annulation d'une réception ni d'un inventaire validé
 
-Statut : Proposée
+Statut : Acceptée
 
 Date : 13/11/2026
 
@@ -394,7 +394,7 @@ Contexte : la règle générale veut qu'un document validé s'annule par des mou
 
 Options : annulation complète avec type de mouvement dédié et colonnes d'annulation sur `goods_receipts` et `inventory_sessions` ; ou correction par ajustement manuel justifié.
 
-Décision proposée : une réception et un inventaire validé ne s'annulent pas. L'erreur se corrige par un `manual_adjustment` dont le motif cite la référence du document. Une commande partiellement reçue peut être soldée : statut `closed`, motif obligatoire dans `closure_reason`.
+Décision : une réception et un inventaire validé ne s'annulent pas. L'erreur se corrige par un `manual_adjustment` dont le motif cite la référence du document. Une commande partiellement reçue peut être soldée : statut `closed`, motif obligatoire dans `closure_reason`.
 
 Conséquences : moins d'écrans et de cas à tester. En contrepartie, `quantity_received` d'une commande reste celle saisie, même après correction du stock ; l'ajustement et son motif font foi. Si le client veut une vraie annulation de réception, elle s'ajoutera par un type de mouvement `purchase_cancellation` sans toucher à l'existant.
 
@@ -412,12 +412,12 @@ Conséquences : l'opération et sa trace sont validées ensemble. Une erreur d'�
 
 ## ADR-020 : emplacements créés par le seeder
 
-Statut : Proposée
+Statut : Acceptée
 
 Date : 13/11/2026
 
 Contexte : le besoin porte sur un entrepôt central et un point de vente. Le modèle accepte un nombre quelconque d'emplacements, mais un écran de création imposerait de créer les lignes `stock_levels` de tous les produits et de régler l'affectation des utilisateurs.
 
-Décision proposée : les deux emplacements sont créés par le seeder de référence. L'administrateur peut modifier leur nom et leur adresse, pas en créer ni en supprimer depuis l'interface.
+Décision : les deux emplacements sont créés par le seeder de référence. L'administrateur peut modifier leur nom et leur adresse, pas en créer ni en supprimer depuis l'interface.
 
 Conséquences : `StockService::lockLevels` crée à zéro une ligne de stock manquante, ce qui rend l'ajout d'un troisième emplacement possible plus tard par un simple seeder ou un écran dédié.
