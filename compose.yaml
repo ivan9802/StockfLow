@@ -1,0 +1,58 @@
+# Environnement de développement de StockFlow.
+# Les valeurs viennent du fichier .env à la racine (voir .env.example).
+# Application : http://localhost:8080   MySQL depuis le poste : 127.0.0.1:3307
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: dev
+    volumes:
+      - .:/var/www/html
+      # vendor et node_modules vivent dans des volumes Docker : les lire à travers
+      # le montage Windows rend chaque requête dix fois plus lente.
+      - vendor:/var/www/html/vendor
+      - node_modules:/var/www/html/node_modules
+    ports:
+      - "${VITE_PORT:-5173}:5173"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: nginx:1.28-alpine
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-stockflow}
+      MYSQL_USER: ${DB_USERNAME:-stockflow}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root-secret}
+      TZ: Africa/Abidjan
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "${FORWARD_DB_PORT:-3307}:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  dbdata:
+  vendor:
+  node_modules:
