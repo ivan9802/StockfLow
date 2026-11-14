@@ -122,7 +122,7 @@ Route::middleware('can:alerts.view')->group(function () {
     Route::post('/alerts/read', [AlertController::class, 'markAllRead'])->name('alerts.read');
 });
 
-Route::middleware('can:reports.view')->group(function () {
+Route::middleware(['can:reports.view', 'throttle:20,1'])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/stock.{format}', [ReportController::class, 'stock'])->whereIn('format', ['csv', 'pdf'])->name('reports.stock');
     Route::get('/reports/movements.{format}', [ReportController::class, 'movements'])->whereIn('format', ['csv', 'pdf'])->name('reports.movements');
@@ -146,5 +146,5 @@ Route::get('/audit-logs', [AuditLogController::class, 'index'])->middleware('can
 
 Route::prefix('internal')->name('internal.')->middleware('throttle:120,1')->group(function () {
     Route::get('/products/search', ProductSearchController::class)->middleware('can:catalog.view')->name('products.search');
-    Route::get('/dashboard', DashboardDataController::class)->name('dashboard');
+    Route::get('/dashboard', DashboardDataController::class)->middleware('can:stock.view')->name('dashboard');
 });

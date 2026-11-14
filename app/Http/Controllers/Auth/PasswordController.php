@@ -8,6 +8,7 @@ use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
@@ -24,7 +25,8 @@ class PasswordController extends Controller
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
             // Un seul champ, avec bouton d'affichage : pas de confirmation à ressaisir.
-            'password' => ['required', 'string', Password::defaults(), 'different:current_password', 'max:200'],
+            // 72 caractères au plus : Bcrypt ignore ce qui dépasse.
+            'password' => ['required', 'string', Password::defaults(), 'different:current_password', 'max:72'],
         ], [], ['password' => 'nouveau mot de passe']);
 
         $user = $request->user();
@@ -33,11 +35,15 @@ class PasswordController extends Controller
             return back()->withErrors(['password' => 'Le mot de passe doit être différent de votre adresse e-mail.']);
         }
 
-        DB::transaction(function () use ($user, $validated, $audit) {
+        DB::transaction(function () use ($user, $validated, $audit, $request) {
             $user->forceFill([
                 'password' => $validated['password'],
                 'must_change_password' => false,
+                'remember_token' => Str::random(60),
             ])->saveQuietly();
+
+            // Les sessions ouvertes ailleurs avec l'ancien mot de passe sont fermées.
+            DB::table('sessions')->where('user_id', $user->id)->where('id', '<>', $request->session()->getId())->delete();
 
             $audit->record(AuditAction::Updated, $user, 'Changement de mot de passe de '.$user->name);
         });

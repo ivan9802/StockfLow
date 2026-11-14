@@ -68,7 +68,7 @@ function attach(root) {
             ${withCost ? `
             <td class="num">
                 <label class="visually-hidden" for="lines-${i}-cost">Prix d'achat de ${name}</label>
-                <div class="input-group ms-auto" style="max-width: 12rem">
+                <div class="input-group ms-auto input-cost">
                     <input type="number" min="0" step="1" inputmode="numeric" required id="lines-${i}-cost"
                         class="form-control text-end tabular" name="lines[${i}][unit_cost]" value="">
                     <span class="input-group-text">F CFA</span>

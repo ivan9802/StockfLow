@@ -5,7 +5,7 @@
 @section('content')
     <x-page-header title="Nouveau transfert" :breadcrumbs="['Transferts' => route('transfers.index')]" />
 
-    <form method="POST" action="{{ route('transfers.store') }}" data-once novalidate style="max-width: 960px">
+    <form method="POST" action="{{ route('transfers.store') }}" data-once novalidate class="form-wide">
         @csrf
 
         <section class="card mb-4">

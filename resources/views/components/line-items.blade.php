@@ -15,7 +15,7 @@
     @if ($warehouseField) data-warehouse-field="{{ $warehouseField }}" @endif>
     <div class="card-header"><h2>{{ $label }}</h2></div>
     <div class="card-body">
-        <div class="mb-3" style="max-width: 480px">
+        <div class="mb-3 search-narrow">
             <x-product-search id="line-search" label="Ajouter un produit" placeholder="Rechercher un produit à ajouter" />
             <div class="form-text">Tapez au moins 2 caractères, puis Entrée ou un clic pour ajouter le produit.</div>
         </div>
@@ -54,7 +54,7 @@
                             @if ($withCost)
                                 <td class="num">
                                     <label class="visually-hidden" for="lines-{{ $i }}-cost">Prix d'achat de {{ $product->name }}</label>
-                                    <div class="input-group ms-auto" style="max-width: 12rem">
+                                    <div class="input-group ms-auto input-cost">
                                         <input type="number" min="0" step="1" inputmode="numeric" required id="lines-{{ $i }}-cost"
                                             class="form-control text-end tabular @error("lines.$i.unit_cost") is-invalid @enderror"
                                             name="lines[{{ $i }}][unit_cost]" value="{{ $line['unit_cost'] ?? $product->purchase_price }}">

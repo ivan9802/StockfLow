@@ -9,7 +9,7 @@
         Réservée aux achats de dépannage et aux excédents livrés au-delà d'une commande. Le circuit normal reste la commande fournisseur.
     </x-alert>
 
-    <form method="POST" action="{{ route('goods-receipts.store') }}" data-once novalidate style="max-width: 960px">
+    <form method="POST" action="{{ route('goods-receipts.store') }}" data-once novalidate class="form-wide">
         @csrf
 
         <section class="card mb-4">

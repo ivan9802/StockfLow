@@ -18,7 +18,10 @@ read -r -p "La base de production va être remplacée par $DB_DUMP. Taper RESTAU
 
 $COMPOSE exec -T app php artisan down --retry=60
 
-gunzip -c "$DB_DUMP" | $COMPOSE exec -T db sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+# La base est vidée avant l'import : une table créée après la sauvegarde (migration
+# d'une version plus récente) bloquerait sinon les déploiements suivants.
+$COMPOSE exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e "DROP DATABASE \`$MYSQL_DATABASE\`; CREATE DATABASE \`$MYSQL_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`$MYSQL_DATABASE\`.* TO \`$MYSQL_USER\`@\`%\`;"'
+gunzip -c "$DB_DUMP" | $COMPOSE exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot "$MYSQL_DATABASE"'
 
 if [ -n "$FILES_ARCHIVE" ]; then
     [ -f "$FILES_ARCHIVE" ] || { echo "Archive introuvable : $FILES_ARCHIVE" >&2; exit 1; }
@@ -26,7 +29,11 @@ if [ -n "$FILES_ARCHIVE" ]; then
 fi
 
 # Contrôle immédiat : l'historique restauré doit redonner les niveaux de stock.
-$COMPOSE exec -T app php artisan stock:verify
+# En cas d'écart, l'application reste volontairement en maintenance.
+if ! $COMPOSE exec -T app php artisan stock:verify; then
+    echo "ERREUR : la base restaurée est incohérente. L'application reste en maintenance." >&2
+    exit 1
+fi
 $COMPOSE exec -T app php artisan up
 
 echo "Restauration terminée."

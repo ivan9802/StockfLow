@@ -17,3 +17,5 @@ bootstrap/cache/*.php
 tests/Concurrency/workers/*.log
 docs
 graphify-out
+backups
+.env.production

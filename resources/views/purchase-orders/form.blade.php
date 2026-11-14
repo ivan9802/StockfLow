@@ -13,7 +13,7 @@
     <x-page-header :title="$editing ? 'Modifier la commande '.$order->reference : 'Nouvelle commande fournisseur'"
         :breadcrumbs="['Commandes' => route('purchase-orders.index')]" />
 
-    <form method="POST" action="{{ $editing ? route('purchase-orders.update', $order) : route('purchase-orders.store') }}" data-once novalidate style="max-width: 960px">
+    <form method="POST" action="{{ $editing ? route('purchase-orders.update', $order) : route('purchase-orders.store') }}" data-once novalidate class="form-wide">
         @csrf
         @if ($editing) @method('PUT') @endif
 

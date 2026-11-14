@@ -32,6 +32,10 @@ class LoginController extends Controller
         if (RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS)) {
             $minutes = (int) ceil(RateLimiter::availableIn($key) / 60);
 
+            // Un blocage signale une tentative de deviner un mot de passe : il est tracé.
+            $this->audit->record(AuditAction::LoginFailed, null,
+                'Connexion bloquée après trop d\'échecs pour '.$request->string('email'));
+
             throw ValidationException::withMessages([
                 'email' => "Trop de tentatives. Réessayez dans $minutes minute".($minutes > 1 ? 's' : '').'.',
             ]);
@@ -39,7 +43,9 @@ class LoginController extends Controller
 
         $credentials = $request->only('email', 'password') + ['is_active' => true];
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        // Pas d'option « rester connecté » : les postes du comptoir et de l'entrepôt sont
+        // partagés, et chaque opération doit rester attribuée à la bonne personne.
+        if (! Auth::attempt($credentials)) {
             RateLimiter::hit($key, 60);
 
             // On trace l'adresse essayée, jamais le mot de passe.

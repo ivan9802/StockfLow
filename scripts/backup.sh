@@ -6,6 +6,8 @@
 # Produit deux fichiers horodatés et supprime les sauvegardes de plus de RETENTION_DAYS jours.
 # À planifier chaque nuit (cron), voir docs/07-deployment/backup-restore.md.
 set -euo pipefail
+# Les sauvegardes contiennent toute la base : lisibles par leur seul propriétaire.
+umask 077
 
 COMPOSE="docker compose -f compose.prod.yaml --env-file .env.production"
 DEST="${1:-./backups}"
@@ -15,7 +17,8 @@ STAMP="$(date +%Y-%m-%d_%H-%M)"
 mkdir -p "$DEST"
 
 # --single-transaction : copie cohérente d'InnoDB sans bloquer les ventes en cours.
-$COMPOSE exec -T db sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --triggers --set-gtid-purged=OFF "$MYSQL_DATABASE"' \
+# Mot de passe passé par variable d'environnement, pas sur la ligne de commande.
+$COMPOSE exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqldump -uroot --single-transaction --routines --triggers --set-gtid-purged=OFF "$MYSQL_DATABASE"' \
     | gzip > "$DEST/stockflow-db_$STAMP.sql.gz"
 
 $COMPOSE exec -T app tar -czf - -C /var/www/html/storage app > "$DEST/stockflow-files_$STAMP.tar.gz"

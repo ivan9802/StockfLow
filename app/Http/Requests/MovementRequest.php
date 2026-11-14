@@ -17,8 +17,8 @@ class MovementRequest extends FormRequest
     {
         return [
             'kind' => ['required', Rule::in(['internal_use', 'adjustment_in', 'adjustment_out'])],
-            'product_id' => ['required', 'integer', 'exists:products,id'],
-            'warehouse_id' => ['required', 'integer', 'exists:warehouses,id'],
+            'product_id' => ['required', 'integer', Rule::exists('products', 'id')->whereNull('deleted_at')],
+            'warehouse_id' => ['required', 'integer', Rule::exists('warehouses', 'id')->where('is_active', true)],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000000'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
         ];

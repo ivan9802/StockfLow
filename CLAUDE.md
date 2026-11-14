@@ -31,7 +31,7 @@ Le cahier des charges d'origine est `cahier_des_charges_stockflow.md`. La versio
 - Requêtes via Eloquent ou le Query Builder avec paramètres liés. Pas de SQL concaténé.
 - Affichage : `{{ }}` partout dans Blade. `{!! !!}` est interdit sauf sur du contenu généré par le serveur et documenté (SVG de code-barres).
 - Formats : montants `1 200 000 F CFA`, dates `JJ/MM/AAAA`, fuseau `Africa/Abidjan`, locale `fr`.
-- Fichiers téléversés : images uniquement (jpeg, png, webp), 2 Mo au plus, nom régénéré, stockage sur le disque `public` de Laravel.
+- Fichiers téléversés : images uniquement (jpeg, png, webp), 2 Mo au plus, nom régénéré, contenu contrôlé, stockage sur le disque privé `local`, servies par une route réservée aux utilisateurs connectés.
 - Pas de secret dans Git. `.env.example` documente chaque variable.
 
 ## Façon de travailler
@@ -55,6 +55,7 @@ Tout s'exécute dans le conteneur `app` : préfixer par `docker compose exec -T 
 - Assets : `npm run build` (2 à 3 minutes sous Windows). Une vue qui appelle `@vite` sur une nouvelle entrée exige de l'ajouter dans `vite.config.js`.
 
 Pièges connus :
+- Ne jamais lancer deux suites de tests en même temps : elles partagent la base `db-test`, et le `migrate:fresh` de `RefreshDatabase` supprime les tables sous les processus de l'autre suite (constaté le 14/11/2026 sur les tests de concurrence).
 - Les tests à processus réels utilisent `DatabaseTruncation`, pas `RefreshDatabase` : une transaction de test cacherait les données aux autres processus.
 - Le nom `store()` est réservé par la classe `Factory` de Laravel : l'état « point de vente » de `WarehouseFactory` s'appelle `pointOfSale()`.
 - Une réponse en flux (export CSV) n'a pas de méthode `status()` dans les tests : utiliser `getStatusCode()`.

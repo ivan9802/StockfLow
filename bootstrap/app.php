@@ -18,6 +18,19 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [SecurityHeaders::class]);
 
+        // Derrière le proxy inverse TLS de production, l'adresse du client et le schéma
+        // HTTPS arrivent dans les en-têtes X-Forwarded-*. Sans cela, la limitation des
+        // connexions compterait toute l'entreprise comme une seule adresse et HSTS ne
+        // serait jamais envoyé. TRUSTED_PROXIES vaut « * » en production (le service web
+        // n'écoute que sur 127.0.0.1) et reste vide en développement.
+        if ($proxies = env('TRUSTED_PROXIES')) {
+            $middleware->trustProxies(
+                at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)),
+                headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST
+                    | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
+            );
+        }
+
         $middleware->alias([
             'active' => EnsureUserIsActive::class,
             'password.changed' => EnsurePasswordIsChanged::class,

@@ -28,7 +28,7 @@
                                 @if ($late)<span class="sf-badge is-danger ms-1">En retard</span>@endif
                             </td>
                             <td class="num col-p2">{{ Format::money($order->totalAmount()) }}</td>
-                            <td class="col-p3" style="min-width: 7rem">
+                            <td class="col-p3 col-progress">
                                 <progress max="100" value="{{ $order->receivedPercent() }}" class="w-100" aria-label="Reçu à {{ $order->receivedPercent() }} %"></progress>
                                 <span class="row-sub tabular">{{ $order->receivedPercent() }} %</span>
                             </td>

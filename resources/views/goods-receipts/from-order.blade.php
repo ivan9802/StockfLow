@@ -10,7 +10,7 @@
         </x-slot:context>
     </x-page-header>
 
-    <form method="POST" action="{{ route('purchase-orders.receive.store', $order) }}" data-once novalidate style="max-width: 960px">
+    <form method="POST" action="{{ route('purchase-orders.receive.store', $order) }}" data-once novalidate class="form-wide">
         @csrf
 
         <section class="card mb-4">

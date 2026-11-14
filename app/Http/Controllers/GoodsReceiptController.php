@@ -76,7 +76,7 @@ class GoodsReceiptController extends Controller
     public function storeFromOrder(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
         $data = $request->validate([
-            'quantities' => ['required', 'array'],
+            'quantities' => ['required', 'array', 'max:500'],
             'quantities.*' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'delivery_note_number' => ['nullable', 'string', 'max:60'],
             'received_at' => ['nullable', 'date', 'before_or_equal:today'],

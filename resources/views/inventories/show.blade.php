@@ -119,7 +119,7 @@
                                 {{-- Le théorique n'apparaît qu'après la saisie : le comptage reste à l'aveugle. --}}
                                 <td class="num" data-theoretical>{{ $item->isCounted() ? Format::number($item->theoretical_quantity) : '' }}</td>
                                 <td class="num fw-semibold" data-variance>{{ $item->isCounted() ? Format::signed($item->variance) : '' }}</td>
-                                <td style="min-width: 14rem">
+                                <td class="col-justification">
                                     @if ($counting)
                                         <label class="visually-hidden" for="why-{{ $item->id }}">Justification de l'écart sur {{ $item->product->name }}</label>
                                         <input type="text" class="form-control" id="why-{{ $item->id }}" maxlength="500"

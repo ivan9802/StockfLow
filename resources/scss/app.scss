@@ -912,3 +912,26 @@ a.kpi-card:hover {
     background: #fff;
   }
 }
+
+// ---------------------------------------------------------------- Largeurs utilitaires
+// Pas d'attribut style dans les vues : la CSP les bloque (pas de 'unsafe-inline').
+
+.form-wide {
+  max-width: 960px;
+}
+
+.search-narrow {
+  max-width: 480px;
+}
+
+.input-cost {
+  max-width: 12rem;
+}
+
+.col-justification {
+  min-width: 14rem;
+}
+
+.col-progress {
+  min-width: 7rem;
+}

@@ -106,7 +106,7 @@ class UserController extends Controller
             'role' => ['required', Rule::in(Role::values())],
             'warehouse_id' => ['nullable', 'integer', Rule::exists('warehouses', 'id')],
             'is_active' => ['required', 'boolean'],
-            'password' => $user ? ['prohibited'] : ['nullable', 'string', Password::defaults(), 'max:200'],
+            'password' => $user ? ['prohibited'] : ['nullable', 'string', Password::defaults(), 'max:72'],
         ], [], ['password' => 'mot de passe provisoire']);
 
         // Un vendeur doit être affecté à un point de vente : c'est de là qu'il vend (D-009).

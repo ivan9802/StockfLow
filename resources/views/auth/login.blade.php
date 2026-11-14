@@ -27,11 +27,6 @@
                 </div>
             </div>
 
-            <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" id="remember" name="remember" value="1" @checked(old('remember'))>
-                <label class="form-check-label" for="remember">Rester connecté sur cet appareil</label>
-            </div>
-
             <button type="submit" class="btn btn-primary w-100">Se connecter</button>
         </form>
 
