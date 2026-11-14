@@ -1,0 +1,188 @@
+// Documents imprimables : bons de sortie, de réception, de transfert, feuille d'inventaire.
+// Mise en page A4, sobre, noir sur blanc.
+
+@import "variables";
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/root";
+@import "bootstrap/scss/reboot";
+@import "bootstrap/scss/buttons";
+$bootstrap-icons-font-dir: "bootstrap-icons/font/fonts";
+@import "bootstrap-icons/font/bootstrap-icons";
+@import "@fontsource-variable/public-sans/wght.css";
+
+@page {
+  size: A4;
+  margin: 14mm 12mm;
+}
+
+body {
+  background: $sf-bg;
+  color: #111;
+  font-size: 10.5pt;
+  line-height: 1.4;
+}
+
+.print-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.sheet {
+  background: #fff;
+  max-width: 210mm;
+  margin: 0 auto 2rem;
+  padding: 14mm 12mm;
+  border: 1px solid $sf-border;
+}
+
+.muted {
+  color: #555;
+  font-size: 9pt;
+}
+
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 6mm;
+  margin-bottom: 6mm;
+  border-bottom: 2px solid #111;
+
+  .company {
+    font-weight: 700;
+    font-size: 13pt;
+  }
+
+  .doc {
+    text-align: right;
+  }
+
+  .doc-title {
+    font-weight: 700;
+    font-size: 14pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .doc-ref {
+    font-family: $font-family-monospace;
+    font-size: 11pt;
+  }
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2mm 8mm;
+  margin-bottom: 6mm;
+
+  dt {
+    color: #555;
+    font-size: 9pt;
+    font-weight: 400;
+  }
+
+  dd {
+    margin: 0 0 1mm;
+    font-weight: 600;
+  }
+}
+
+table.lines {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6mm;
+
+  th,
+  td {
+    border-bottom: 1px solid #bbb;
+    padding: 2mm 1.5mm;
+    vertical-align: top;
+  }
+
+  th {
+    text-align: left;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1.5px solid #111;
+  }
+
+  .num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .code {
+    font-family: $font-family-monospace;
+    font-size: 9pt;
+  }
+
+  tfoot td {
+    border-bottom: 0;
+    font-weight: 700;
+    font-size: 11pt;
+  }
+
+  .count-box {
+    display: inline-block;
+    width: 22mm;
+    border: 1px solid #555;
+    height: 7mm;
+  }
+}
+
+.signatures {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10mm;
+  margin-top: 10mm;
+
+  div {
+    border-top: 1px solid #111;
+    padding-top: 2mm;
+    min-height: 22mm;
+    font-size: 9pt;
+  }
+}
+
+.stamp {
+  display: inline-block;
+  border: 2px solid #a32a1f;
+  color: #a32a1f;
+  padding: 1mm 3mm;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 4mm;
+}
+
+.sheet-foot {
+  margin-top: 8mm;
+  padding-top: 2mm;
+  border-top: 1px solid #ccc;
+  text-align: center;
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .sheet {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    max-width: none;
+  }
+}

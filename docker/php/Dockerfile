@@ -1,7 +1,8 @@
 # Image PHP de StockFlow.
 # Étape "base" : PHP-FPM 8.4 et les extensions dont l'application a besoin.
 # Étape "dev"  : ajoute Composer et Node pour travailler dans le conteneur.
-# L'étape de production est ajoutée en phase 7 (docs/07-deployment).
+# Étapes "vendor", "assets" et "prod" : image de production autonome, sans outil
+# de développement, code et dépendances copiés dans l'image (docs/07-deployment).
 
 FROM php:8.4-fpm-bookworm AS base
 
@@ -31,3 +32,36 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     COMPOSER_HOME=/tmp/composer
 
 CMD ["php-fpm", "-R"]
+
+# ---------------------------------------------------------------- Production
+
+FROM composer:2 AS vendor
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --no-progress
+COPY . .
+RUN composer dump-autoload --optimize --classmap-authoritative --no-dev
+
+FROM node:22-bookworm-slim AS assets
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY vite.config.js ./
+COPY resources ./resources
+RUN npm run build
+
+FROM base AS prod
+
+COPY docker/php/opcache-prod.ini /usr/local/etc/php/conf.d/zz-opcache.ini
+
+COPY --chown=www-data:www-data . .
+COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
+COPY --from=assets --chown=www-data:www-data /app/public/build ./public/build
+
+# Aucun secret dans l'image : le fichier .env est fourni au démarrage par compose.prod.yaml.
+RUN rm -rf .env tests node_modules \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
+
+USER www-data
+CMD ["php-fpm"]

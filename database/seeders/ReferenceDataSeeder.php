@@ -17,13 +17,22 @@ class ReferenceDataSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->seedWarehouses();
+        $this->seedFirstAdmin();
+    }
+
+    public function seedWarehouses(): void
+    {
         Warehouse::firstOrCreate(['code' => 'ENT'], [
             'name' => 'Entrepôt central', 'type' => WarehouseType::Warehouse, 'address' => 'Zone industrielle de Yopougon, Abidjan',
         ]);
         Warehouse::firstOrCreate(['code' => 'PDV'], [
             'name' => 'Point de vente Plateau', 'type' => WarehouseType::Store, 'address' => 'Avenue Chardy, Le Plateau, Abidjan',
         ]);
+    }
 
+    private function seedFirstAdmin(): void
+    {
         if (User::where('role', Role::Admin->value)->exists()) {
             return;
         }

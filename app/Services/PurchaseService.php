@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\Concerns\NormalizesLines;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -164,7 +165,7 @@ final class PurchaseService
                 );
             }
 
-            /** @var \Illuminate\Support\Collection<int, PurchaseOrderItem> $items */
+            /** @var Collection<int, PurchaseOrderItem> $items */
             $items = $locked->items()->orderBy('id')->lockForUpdate()->get()->keyBy('id');
 
             $received = [];

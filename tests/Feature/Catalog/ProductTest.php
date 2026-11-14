@@ -3,12 +3,16 @@
 namespace Tests\Feature\Catalog;
 
 use App\Enums\AuditAction;
+use App\Enums\MovementType;
+use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\BarcodeGenerator;
+use App\Services\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -187,7 +191,7 @@ class ProductTest extends TestCase
         $this->assertSame(120000, $product->selling_price);
         $this->assertDatabaseHas('stock_levels', ['product_id' => $product->id, 'warehouse_id' => $this->store->id, 'reorder_point' => 3]);
 
-        $log = \App\Models\AuditLog::where('auditable_type', 'product')->where('action', 'updated')->latest('id')->firstOrFail();
+        $log = AuditLog::where('auditable_type', 'product')->where('action', 'updated')->latest('id')->firstOrFail();
         $this->assertSame(100000, $log->old_values['selling_price']);
         $this->assertSame(120000, $log->new_values['selling_price']);
     }
@@ -209,14 +213,14 @@ class ProductTest extends TestCase
     {
         $product = Product::factory()->create();
         $this->stock($product, $this->warehouse, 2);
-        app(\App\Services\StockService::class)->decrease(
-            $product->id, $this->warehouse->id, 2, \App\Enums\MovementType::InternalUse, $this->manager, 'Casse'
+        app(StockService::class)->decrease(
+            $product->id, $this->warehouse->id, 2, MovementType::InternalUse, $this->manager, 'Casse'
         );
 
         $this->actingAs($this->manager)->delete("/products/{$product->id}")->assertRedirect(route('products.index'));
 
         $this->assertSoftDeleted($product);
-        $this->assertSame(2, \App\Models\StockMovement::where('product_id', $product->id)->count());
+        $this->assertSame(2, StockMovement::where('product_id', $product->id)->count());
         $this->get('/products')->assertDontSee($product->name);
     }
 

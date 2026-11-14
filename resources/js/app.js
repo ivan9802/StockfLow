@@ -3,7 +3,7 @@ import { Dropdown, Modal, Toast } from 'bootstrap';
 
 import { initProductSearch } from './modules/product-search';
 import { initSaleCart } from './modules/sale-cart';
-import { initLineItems } from './modules/line-items';
+import { initLineItems, initSingleProduct } from './modules/line-items';
 import { initInventoryCount } from './modules/inventory-count';
 import { initDashboard } from './modules/dashboard';
 import { initLiveList } from './modules/live-list';
@@ -151,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initProductSearch();
     initLiveList();
     initLineItems();
+    initSingleProduct();
     initSaleCart();
     initInventoryCount();
     initDashboard();

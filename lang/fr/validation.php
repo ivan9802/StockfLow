@@ -150,5 +150,7 @@ return [
         'lines.*.quantity' => 'quantité',
         'lines.*.unit_cost' => 'prix d\'achat',
         'reorder_point' => 'seuil de réassort',
+        'form_token' => 'jeton du formulaire',
+        'kind' => 'type de mouvement',
     ],
 ];

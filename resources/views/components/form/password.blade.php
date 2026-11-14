@@ -1,10 +1,10 @@
-@props(['name', 'label', 'autocomplete' => 'current-password', 'help' => null])
+@props(['name', 'label', 'autocomplete' => 'current-password', 'help' => null, 'required' => true])
 @php $hasError = $errors->has($name); @endphp
 {{-- Un seul champ, avec bouton pour afficher la saisie : pas de confirmation à retaper. --}}
 <div class="mb-3">
     <label class="form-label" for="{{ $name }}">{{ $label }}</label>
     <div class="input-group @if ($hasError) has-validation @endif">
-        <input type="password" name="{{ $name }}" id="{{ $name }}" autocomplete="{{ $autocomplete }}" required
+        <input type="password" name="{{ $name }}" id="{{ $name }}" autocomplete="{{ $autocomplete }}" @if ($required) required @endif
             {{ $attributes->class(['form-control', 'is-invalid' => $hasError]) }}
             @if ($hasError) aria-invalid="true" aria-describedby="{{ $name }}-error" @endif>
         <button type="button" class="btn btn-outline-secondary" data-password-toggle="{{ $name }}" aria-pressed="false">Afficher</button>

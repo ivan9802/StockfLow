@@ -45,4 +45,16 @@ Le cahier des charges d'origine est `cahier_des_charges_stockflow.md`. La versio
 
 ## Commandes utiles
 
-Section complétée à la phase 3, une fois le projet Laravel créé (installation, migrations, seeders, tests, lancement).
+Tout s'exécute dans le conteneur `app` : préfixer par `docker compose exec -T app` (sous Git Bash, exporter `MSYS_NO_PATHCONV=1` pour que les chemins ne soient pas convertis).
+
+- Démarrer : `docker compose up -d` (application sur http://localhost:8080, MySQL sur le port 3307).
+- Tests : `php artisan test` (Unit et Feature, sur le service `db-test` en mémoire vive). Concurrence : `php artisan test --testsuite=Concurrency`, quelques minutes.
+- Cohérence du stock : `php artisan stock:verify` (doit répondre « aucun écart »).
+- Base de démonstration : `php artisan migrate:fresh --seed --seeder=DemoSeeder` (plus de 10 minutes sous Windows).
+- Style : `vendor/bin/pint` avant chaque commit.
+- Assets : `npm run build` (2 à 3 minutes sous Windows). Une vue qui appelle `@vite` sur une nouvelle entrée exige de l'ajouter dans `vite.config.js`.
+
+Pièges connus :
+- Les tests à processus réels utilisent `DatabaseTruncation`, pas `RefreshDatabase` : une transaction de test cacherait les données aux autres processus.
+- Le nom `store()` est réservé par la classe `Factory` de Laravel : l'état « point de vente » de `WarehouseFactory` s'appelle `pointOfSale()`.
+- Une réponse en flux (export CSV) n'a pas de méthode `status()` dans les tests : utiliser `getStatusCode()`.

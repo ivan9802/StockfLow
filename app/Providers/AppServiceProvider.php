@@ -14,11 +14,14 @@ use App\Models\StockTransfer;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Support\Format;
+use App\View\Composers\NavigationComposer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\AliasLoader;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -62,8 +65,11 @@ class AppServiceProvider extends ServiceProvider
             Gate::define($ability, fn (User $user) => $user->role->allows($ability));
         }
 
+        // Compteurs de la barre latérale et de la cloche.
+        View::composer(['layouts.partials.sidebar', 'layouts.partials.topbar'], NavigationComposer::class);
+
         // Format::money() et Format::date() utilisables tels quels dans les vues.
-        AliasLoader::getInstance()->alias('Format', \App\Support\Format::class);
+        AliasLoader::getInstance()->alias('Format', Format::class);
 
         // Jeton à usage unique repris par la politique de sécurité du contenu (CSP).
         Vite::useCspNonce();
