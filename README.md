@@ -65,9 +65,11 @@ Ces comptes ne doivent jamais exister en production. Le seeder refuse de s'exéc
 
 ## Commandes utiles
 
+N'utilisez pas le PHP installé sur le poste (XAMPP ou autre) : le projet exige PHP 8.3 au minimum et ses dépendances sont dans le conteneur. Sous Windows, le raccourci `artisan.cmd` lance artisan dans le conteneur, par exemple `artisan.cmd migrate:status`. Lancé avec le PHP du poste, `php artisan` s'arrête avec un message qui indique la bonne commande.
+
 | Commande (préfixer par `docker compose exec app`) | Effet |
 | :-- | :-- |
-| `php artisan test` | Tests unitaires et fonctionnels, sur la base MySQL de test |
+| `php artisan test` | Tests unitaires et fonctionnels, sur la base MySQL de test. La démarrer avant : `docker compose --profile test up -d db-test` (depuis le poste, sans préfixe) |
 | `php artisan test --testsuite=Concurrency` | Ventes simultanées par processus réels (quelques minutes) |
 | `CONCURRENCY_ROUNDS=50 php artisan test --testsuite=Concurrency` | Même chose sur 50 tours |
 | `php artisan stock:verify` | Rejoue l'historique et vérifie qu'il redonne exactement chaque niveau de stock |

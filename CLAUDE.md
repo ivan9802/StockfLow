@@ -48,7 +48,7 @@ Le cahier des charges d'origine est `cahier_des_charges_stockflow.md`. La versio
 Tout s'exécute dans le conteneur `app` : préfixer par `docker compose exec -T app` (sous Git Bash, exporter `MSYS_NO_PATHCONV=1` pour que les chemins ne soient pas convertis).
 
 - Démarrer : `docker compose up -d` (application sur http://localhost:8080, MySQL sur le port 3307).
-- Tests : `php artisan test` (Unit et Feature, sur le service `db-test` en mémoire vive). Concurrence : `php artisan test --testsuite=Concurrency`, quelques minutes.
+- Tests : démarrer d'abord la base de test, `docker compose --profile test up -d db-test` (plusieurs minutes après un redémarrage du poste), puis `php artisan test` (Unit et Feature, sur `db-test` en mémoire vive). L'arrêter ensuite avec `docker compose stop db-test` : elle ralentit fortement la machine. Concurrence : `php artisan test --testsuite=Concurrency`, quelques minutes.
 - Cohérence du stock : `php artisan stock:verify` (doit répondre « aucun écart »).
 - Base de démonstration : `php artisan migrate:fresh --seed --seeder=DemoSeeder` (plus de 10 minutes sous Windows).
 - Style : `vendor/bin/pint` avant chaque commit.

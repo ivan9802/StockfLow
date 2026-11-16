@@ -18,3 +18,4 @@ CHANGELOG.md export-ignore
 *.woff2 binary
 *.pdf binary
 *.sh text eol=lf
+*.cmd text eol=crlf

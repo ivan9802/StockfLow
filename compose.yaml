@@ -16,10 +16,10 @@ services:
       - node_modules:/var/www/html/node_modules
     ports:
       - "127.0.0.1:${VITE_PORT:-5173}:5173"
+    # L'application n'attend que sa propre base. La base de test ne sert qu'à
+    # « php artisan test » et ne doit jamais bloquer le démarrage du site.
     depends_on:
       db:
-        condition: service_healthy
-      db-test:
         condition: service_healthy
 
   web:
@@ -57,11 +57,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+      # Après un redémarrage du poste, MySQL peut mettre plusieurs minutes à s'initialiser :
+      # les échecs du contrôle ne comptent qu'après ce délai.
+      start_period: 300s
 
   # MySQL réservé aux tests automatisés. Ses données vivent en mémoire vive :
   # les migrations y passent en quelques secondes et rien ne survit à l'arrêt.
   db-test:
     image: mysql:8.4
+    # Démarre seulement pour les tests : docker compose --profile test up -d db-test
+    profiles: ["test"]
     environment:
       MYSQL_DATABASE: stockflow_test
       MYSQL_USER: ${DB_USERNAME:-stockflow}
@@ -79,6 +84,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+      # Après un redémarrage du poste, MySQL peut mettre plusieurs minutes à s'initialiser :
+      # les échecs du contrôle ne comptent qu'après ce délai.
+      start_period: 300s
 
 volumes:
   dbdata:
