@@ -9,7 +9,7 @@ set -euo pipefail
 # Les sauvegardes contiennent toute la base : lisibles par leur seul propriétaire.
 umask 077
 
-COMPOSE="docker compose -f compose.prod.yaml --env-file .env.production"
+COMPOSE="$(dirname "${BASH_SOURCE[0]}")/prod-compose.sh"
 DEST="${1:-./backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 STAMP="$(date +%Y-%m-%d_%H-%M)"

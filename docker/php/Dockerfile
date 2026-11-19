@@ -8,16 +8,20 @@ FROM php:8.4-fpm-bookworm AS base
 
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
 
-RUN install-php-extensions pdo_mysql gd intl zip bcmath opcache pcntl \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends default-mysql-client unzip git \
-    && rm -rf /var/lib/apt/lists/*
+RUN install-php-extensions pdo_mysql gd intl zip bcmath opcache pcntl
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-stockflow.ini
 
 WORKDIR /var/www/html
 
 FROM base AS dev
+
+# Outils de travail : git et unzip pour Composer, client MySQL pour « php artisan db ».
+# Absents de l'image de production, qui n'en a pas l'usage (mysqldump et mysql tournent
+# dans le conteneur db, voir scripts/backup.sh et restore.sh).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends default-mysql-client unzip git \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
@@ -54,13 +58,18 @@ FROM base AS prod
 
 COPY docker/php/opcache-prod.ini /usr/local/etc/php/conf.d/zz-opcache.ini
 
-COPY --chown=www-data:www-data . .
-COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
-COPY --from=assets --chown=www-data:www-data /app/public/build ./public/build
+# Le code appartient à root : PHP-FPM, qui tourne sous www-data, le lit sans pouvoir le
+# modifier. Seuls storage/ et bootstrap/cache/ lui sont ouverts en écriture.
+COPY . .
+COPY --from=vendor /app/vendor ./vendor
+COPY --from=assets /app/public/build ./public/build
 
-# Aucun secret dans l'image : le fichier .env est fourni au démarrage par compose.prod.yaml.
+# Aucun secret dans l'image : la configuration arrive au démarrage par les variables
+# d'environnement de compose.prod.yaml (env_file: .env.production).
 RUN rm -rf .env tests node_modules \
-    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && mkdir -p storage/app/private storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && chown -R root:root /var/www/html \
+    && chmod -R go-w /var/www/html \
     && chown -R www-data:www-data storage bootstrap/cache
 
 USER www-data

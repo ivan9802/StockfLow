@@ -1,9 +1,25 @@
 # Production de StockFlow : un serveur, trois conteneurs.
 #
 #   scripts/deploy.sh            (procédure complète, voir docs/07-deployment/deployment.md)
+#   scripts/prod-compose.sh ...  (toute autre commande Compose : ps, logs, exec)
+#
+# Deux fichiers de configuration, lus par scripts/prod-compose.sh :
+#   .env.production  configuration de l'application, transmise au conteneur app (env_file) ;
+#   .env.secrets     DB_ROOT_PASSWORD et ADMIN_PASSWORD, lus seulement pour l'interpolation
+#                    ci-dessous : PHP ne les voit pas (modèle : docker/env.secrets.example).
 #
 # Le TLS (HTTPS) est assuré en amont par un proxy inverse qui transmet les en-têtes
 # X-Forwarded-*. Le service "web" n'écoute que sur 127.0.0.1 : seul ce proxy l'atteint.
+#
+# Journaux : les sorties des conteneurs (PHP-FPM, Nginx, MySQL) tournent sur 5 fichiers
+# de 10 Mo par service. Les journaux Laravel sont dans le volume "logs", un fichier par
+# jour, conservés LOG_DAILY_DAYS jours (30 par défaut). Voir docs/07-deployment/deployment.md.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
 services:
   app:
@@ -13,11 +29,20 @@ services:
       target: prod
     image: stockflow-app:${APP_VERSION:-latest}
     restart: unless-stopped
+    # Seul fichier transmis à PHP. DB_ROOT_PASSWORD et ADMIN_PASSWORD n'y figurent pas.
     env_file: .env.production
     volumes:
       # Images des produits et journaux : hors de l'image, conservés d'un déploiement à l'autre.
       - storage:/var/www/html/storage/app
       - logs:/var/www/html/storage/logs
+    logging: *logging
+    # PHP-FPM accepte les connexions sur le port 9000.
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     depends_on:
       db:
         condition: service_healthy
@@ -32,8 +57,18 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:80"
+    logging: *logging
+    # Contrôle de bout en bout : Nginx, PHP-FPM et Laravel (route /up). Pendant une mise
+    # en maintenance (php artisan down), /up répond 503 et le service passe « unhealthy ».
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/up || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
   db:
     image: mysql:8.4
@@ -42,7 +77,7 @@ services:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD manquant - utilisez scripts/prod-compose.sh et .env.secrets}
       TZ: Africa/Abidjan
     command:
       - --character-set-server=utf8mb4
@@ -50,11 +85,16 @@ services:
     # Aucun port publié : MySQL n'est joignable que par les conteneurs de l'application.
     volumes:
       - dbdata:/var/lib/mysql
+    logging: *logging
+    # Laisse à InnoDB le temps de fermer proprement ses fichiers à l'arrêt.
+    stop_grace_period: 1m
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      # Mot de passe par MYSQL_PWD : il n'apparaît pas dans la liste des processus.
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 -uroot --silent"]
       interval: 10s
       timeout: 5s
       retries: 30
+      start_period: 120s
 
 volumes:
   dbdata:

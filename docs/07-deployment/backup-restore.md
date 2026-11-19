@@ -17,11 +17,11 @@ Le script contrôle la sauvegarde avant de rendre la main : l'archive doit être
 
 Ce qui n'est pas sauvegardé par le script :
 
-- `.env.production` : à conserver à part, en lieu sûr (section 4) ;
+- `.env.production` et `.env.secrets` : à conserver à part, en lieu sûr (section 4) ;
 - les journaux de l'application (`storage/logs`) ;
 - les images Docker, que le script de déploiement reconstruit depuis le code.
 
-Le script lit `compose.prod.yaml` et `.env.production` dans le dossier courant. Il se lance donc depuis `/opt/stockflow`, et les conteneurs `app` et `db` doivent tourner.
+Le script passe par `scripts/prod-compose.sh`, qui lit `compose.prod.yaml`, `.env.production` et `.env.secrets` à la racine du dépôt. Les conteneurs `app` et `db` doivent tourner.
 
 ## 2. Sauvegarde manuelle
 
@@ -30,7 +30,7 @@ cd /opt/stockflow
 scripts/backup.sh /var/backups/stockflow
 ```
 
-Sans argument, le dossier de destination est `./backups`, dans le dossier du dépôt. C'est là que le script de déploiement range la sauvegarde prise avant chaque mise à jour. Pour les sauvegardes planifiées, préférez un dossier hors du dépôt, comme `/var/backups/stockflow` : `./backups` n'est pas exclu de la construction de l'image (voir « Limites connues » dans `deployment.md`).
+Sans argument, le dossier de destination est `./backups`, dans le dossier du dépôt. C'est là que le script de déploiement range la sauvegarde prise avant chaque mise à jour. Ce dossier est exclu de Git (`.gitignore`) et des images Docker (`.dockerignore`). Pour les sauvegardes planifiées, préférez quand même un dossier hors du dépôt, comme `/var/backups/stockflow` : un `git clean` ou une réinstallation du dépôt ne doit pas pouvoir les emporter.
 
 Préparez le dossier une fois :
 
@@ -59,7 +59,7 @@ Exemple de ligne, pour une sauvegarde chaque nuit à 2 h 30, heure du serveur :
 30 2 * * * cd /opt/stockflow && scripts/backup.sh /var/backups/stockflow >> /var/log/stockflow-backup.log 2>&1
 ```
 
-Le `cd` est indispensable : le script cherche ses fichiers de configuration dans le dossier courant.
+Le `cd` fixe le dossier de destination relatif et le dossier du journal ; le script trouve lui-même ses fichiers de configuration à partir de son emplacement.
 
 Le lendemain, vérifiez que la tâche a fonctionné :
 
@@ -69,6 +69,28 @@ tail -n 20 /var/log/stockflow-backup.log
 ```
 
 Une sauvegarde de la base qui pèse quelques centaines d'octets est vide : la tâche a échoué.
+
+### Serveur sous Windows (Planificateur de tâches)
+
+La production de référence est un serveur Linux. Si StockFlow tourne malgré tout sur un poste Windows avec Docker Desktop, `backup.sh` fonctionne dans Git Bash, qui fournit `bash`, `gzip`, `find` et `tail`. Aucun script PowerShell séparé n'est donc fourni : il dupliquerait la logique de contrôle de la sauvegarde.
+
+Création de la tâche, dans un PowerShell lancé en administrateur (adapter les chemins) :
+
+```powershell
+$bash   = 'C:\Program Files\Git\bin\bash.exe'
+$projet = 'D:/stockflow'
+$action = New-ScheduledTaskAction -Execute $bash -Argument "-lc 'cd $projet && scripts/backup.sh D:/sauvegardes/stockflow >> D:/sauvegardes/stockflow/backup.log 2>&1'"
+$declencheur = New-ScheduledTaskTrigger -Daily -At 2:30
+Register-ScheduledTask -TaskName 'StockFlow - sauvegarde' -Action $action -Trigger $declencheur -RunLevel Highest
+```
+
+Limites propres à Windows :
+
+- Docker Desktop ne tourne que dans une session ouverte : la tâche échoue si personne n'est connecté. Réglez Docker Desktop pour qu'il démarre à l'ouverture de session et laissez la session ouverte (écran verrouillé), ou préférez un serveur Linux.
+- Vérifiez le lendemain la présence des fichiers et le contenu de `backup.log`, comme sous Linux.
+- Le poste ne doit pas se mettre en veille à l'heure de la sauvegarde (Options d'alimentation, ou case « Réveiller l'ordinateur pour exécuter cette tâche » dans le Planificateur).
+
+Cette procédure Windows est documentée, pas exécutée.
 
 ## 4. Conservation
 
@@ -80,7 +102,7 @@ Une sauvegarde de la base qui pèse quelques centaines d'octets est vide : la t�
 
 Les sauvegardes prises par le script de déploiement dans `./backups` suivent la même règle, appliquée seulement lors d'un déploiement.
 
-Gardez aussi une copie de `.env.production` hors du serveur, dans un coffre de mots de passe ou un support chiffré. Il contient les mots de passe MySQL et la clé de l'application. Sans lui, une restauration sur un nouveau serveur oblige à recréer la configuration, et tous les utilisateurs devront se reconnecter.
+Gardez aussi une copie de `.env.production` et de `.env.secrets` hors du serveur, dans un coffre de mots de passe ou un support chiffré. Ils contiennent les mots de passe MySQL et la clé de l'application. Sans eux, une restauration sur un nouveau serveur oblige à recréer la configuration, et tous les utilisateurs devront se reconnecter.
 
 ## 5. Copie hors site
 
@@ -100,7 +122,7 @@ Les sauvegardes contiennent des données personnelles et les empreintes des mots
 
 Une sauvegarde qui n'a jamais été restaurée n'est pas une sauvegarde vérifiée. Une fois par mois, restaurez la dernière sauvegarde hors site sur une machine de test, jamais sur la production.
 
-1. Sur la machine de test, installez StockFlow selon `deployment.md`, sections 1 à 5, avec son propre `.env.production`. Le premier déploiement crée une base vide.
+1. Sur la machine de test, installez StockFlow selon `deployment.md`, sections 1 à 5, avec ses propres `.env.production` et `.env.secrets`. Le premier déploiement crée une base vide.
 2. Récupérez les deux fichiers de la dernière sauvegarde depuis la copie hors site.
 3. Vérifiez leur intégrité :
 
@@ -113,7 +135,7 @@ Une sauvegarde qui n'a jamais été restaurée n'est pas une sauvegarde vérifi�
 5. Comparez la ligne affichée par `stock:verify` (« N mouvements rejoués sur M lignes de stock ») avec celle de la production le même jour :
 
    ```bash
-   docker compose -f compose.prod.yaml --env-file .env.production exec app php artisan stock:verify
+   scripts/prod-compose.sh exec app php artisan stock:verify
    ```
 
 6. Connectez-vous avec un compte réel. Ouvrez la dernière vente de la veille et une fiche produit avec image.
@@ -143,7 +165,7 @@ La restauration remplace la base de production par le contenu de la sauvegarde. 
 
    ```bash
    cd /opt/stockflow
-   docker compose -f compose.prod.yaml --env-file .env.production ps
+   scripts/prod-compose.sh ps
    ```
 
 6. Si la base actuelle contient encore des données, sauvegardez-la d'abord, pour garder une trace de l'état avant restauration :
@@ -173,7 +195,7 @@ Il se termine par « Restauration terminée. ».
 Si `stock:verify` signale un écart, le script s'arrête et l'application reste en maintenance. Ne la rouvrez pas avant d'avoir compris l'écart : essayez la sauvegarde précédente, ou prévenez le responsable technique. Pour rouvrir l'application volontairement :
 
 ```bash
-docker compose -f compose.prod.yaml --env-file .env.production exec app php artisan up
+scripts/prod-compose.sh exec app php artisan up
 ```
 
 À savoir :

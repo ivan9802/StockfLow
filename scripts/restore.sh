@@ -6,7 +6,7 @@
 # La base actuelle est REMPLACÉE. L'application passe en maintenance pendant l'opération.
 set -euo pipefail
 
-COMPOSE="docker compose -f compose.prod.yaml --env-file .env.production"
+COMPOSE="$(dirname "${BASH_SOURCE[0]}")/prod-compose.sh"
 DB_DUMP="${1:?Indiquez le fichier de sauvegarde de la base (.sql.gz)}"
 FILES_ARCHIVE="${2:-}"
 

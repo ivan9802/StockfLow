@@ -24,10 +24,22 @@ Données persistantes, dans des volumes Docker :
 
 L'image `app` ne contient aucun secret : `.env.production` lui est fourni au démarrage.
 
+Contrôles de santé (`scripts/prod-compose.sh ps`, colonne STATUS) :
+
+| Service | Contrôle | Effet |
+| :-- | :-- | :-- |
+| `db` | `mysqladmin ping`, toutes les 10 s, délai de démarrage 120 s | `app` ne démarre qu'une fois MySQL prêt |
+| `app` | Connexion au port 9000 de PHP-FPM, toutes les 30 s | `web` ne démarre qu'une fois PHP-FPM prêt (Nginx refuse de démarrer si le nom `app` ne se résout pas) |
+| `web` | `GET /up` depuis le conteneur, toutes les 30 s | Contrôle de bout en bout Nginx, PHP-FPM et Laravel. Pendant une maintenance (`php artisan down`), `/up` répond 503 et `web` apparaît « unhealthy » : c'est attendu |
+
+Docker ne redémarre pas un conteneur « unhealthy » ; `restart: unless-stopped` le relance seulement s'il s'arrête. L'état sert au diagnostic et à l'ordre de démarrage.
+
+Pour installer un poste de développement ou de démonstration, voir `local-install.md`. Pour un hébergement sans Docker, voir `deployment-without-docker.md`.
+
 ## 1. Prérequis du serveur
 
 - Un serveur Linux 64 bits (par exemple Debian 12 ou Ubuntu 24.04), avec 2 processeurs et 4 Go de mémoire au moins.
-- Docker Engine et le greffon Docker Compose v2 (commande `docker compose`). Suivez la documentation officielle de Docker pour votre distribution.
+- Docker Engine 24 ou plus récent et le greffon Docker Compose v2 (commande `docker compose`). Suivez la documentation officielle de Docker pour votre distribution. Versions de référence : `README.md` de ce dossier.
 - `git`, `curl`, `gzip` et `openssl`.
 - Un nom de domaine dont l'enregistrement DNS pointe vers le serveur, par exemple `stock.example.ci`.
 - Un proxy inverse avec certificat TLS : Caddy ou Nginx.
@@ -49,14 +61,28 @@ Les scripts de `scripts/` sont enregistrés comme exécutables dans le dépôt.
 
 Toutes les commandes qui suivent se lancent depuis `/opt/stockflow`.
 
-## 3. Préparer `.env.production`
+## 3. Préparer `.env.production` et `.env.secrets`
 
-Le fichier `.env.production` sert à deux choses : Docker Compose y lit les mots de passe MySQL, et l'application y lit sa configuration. Il ne doit jamais être versionné (il est déjà exclu par `.gitignore` et `.dockerignore`).
+La configuration tient dans deux fichiers, à la racine du dépôt :
+
+| Fichier | Contenu | Lu par |
+| :-- | :-- | :-- |
+| `.env.production` | Toute la configuration de l'application, dont `DB_PASSWORD` | Docker Compose (interpolation) et le conteneur `app` (`env_file`), donc PHP |
+| `.env.secrets` | `DB_ROOT_PASSWORD` (compte root de MySQL) et `ADMIN_PASSWORD` (mot de passe initial du premier administrateur) | Docker Compose seulement. `DB_ROOT_PASSWORD` va au conteneur `db` ; `ADMIN_PASSWORD` va au seul conteneur éphémère qui crée l'administrateur pendant `scripts/deploy.sh`. PHP ne les voit jamais en service |
+
+Ainsi, une faille qui permettrait de lire l'environnement de PHP ne livre ni le compte root de MySQL, ni le mot de passe initial de l'administrateur. Le script de déploiement refuse de continuer si l'une de ces deux variables figure dans `.env.production`.
+
+Toutes les commandes Compose de production passent par `scripts/prod-compose.sh`, qui charge les deux fichiers (`docker compose -f compose.prod.yaml --env-file .env.production --env-file .env.secrets`). Une commande `docker compose` lancée sans `.env.secrets` s'arrête avec « DB_ROOT_PASSWORD manquant ».
+
+Aucun des deux fichiers ne doit être versionné. `.env.production` est exclu par `.gitignore`. `.env.secrets` doit l'être aussi : `scripts/deploy.sh` vérifie avec `git check-ignore` que les deux fichiers sont ignorés et refuse sinon. Les deux sont exclus des images par `.dockerignore` (motif `.env.*`).
 
 ```bash
 cp .env.example .env.production
-chmod 600 .env.production
+cp docker/env.secrets.example .env.secrets
+chmod 600 .env.production .env.secrets
 ```
+
+Supprimez de `.env.production` les lignes `DB_ROOT_PASSWORD` et `ADMIN_PASSWORD` copiées depuis `.env.example`.
 
 Générez la clé de l'application et deux mots de passe forts :
 
@@ -75,11 +101,12 @@ Modifiez ensuite le fichier. Variables à changer par rapport à `.env.example` 
 | `APP_ENV` | `production` (vérifié par le script de déploiement) |
 | `APP_DEBUG` | `false` (vérifié par le script de déploiement) |
 | `APP_KEY` | La valeur `base64:...` générée ci-dessus. Ne la changez plus jamais : elle chiffre les sessions |
-| `APP_URL` | L'adresse publique, en `https://`, par exemple `https://stock.example.ci` |
+| `APP_URL` | L'adresse publique, en `https://`, par exemple `https://stock.example.ci` (vérifié par le script de déploiement) |
 | `LOG_LEVEL` | `warning` |
-| `DB_PASSWORD` | Mot de passe fort |
-| `DB_ROOT_PASSWORD` | Autre mot de passe fort |
-| `SESSION_SECURE_COOKIE` | `true` |
+| `LOG_STACK` | `daily` (déjà la valeur de `.env.example`) : un fichier de journal par jour |
+| `LOG_DAILY_DAYS` | Nombre de jours de journaux conservés : 30 dans `.env.example` et par défaut dans `config/logging.php` (section 10) |
+| `DB_PASSWORD` | Mot de passe fort ; ni vide, ni `secret` (vérifié par le script de déploiement) |
+| `SESSION_SECURE_COOKIE` | `true` (vérifié par le script de déploiement) |
 | `SESSION_ENCRYPT` | `true` (déjà la valeur de `.env.example`) |
 | `TRUSTED_PROXIES` | `*` : l'application lit l'adresse du client et le schéma HTTPS dans les en-têtes `X-Forwarded-*` du proxy inverse. Sans cette valeur, la limitation des tentatives de connexion compterait toute l'entreprise comme une seule adresse et HSTS ne serait pas envoyé |
 
@@ -101,15 +128,16 @@ COMPANY_HOST="Nom et adresse de l'hébergeur"
 
 Remplacez chaque valeur par les informations réelles de l'entreprise.
 
-Pour fixer le premier compte administrateur, renseignez si vous le souhaitez :
+Dans `.env.secrets` :
 
 ```dotenv
-ADMIN_EMAIL=admin@example.ci
-ADMIN_NAME="Prénom Nom"
+DB_ROOT_PASSWORD=<deuxième valeur openssl rand -hex 24, différente de DB_PASSWORD>
 ADMIN_PASSWORD=un-mot-de-passe-provisoire-de-12-caracteres
 ```
 
-Sans `ADMIN_PASSWORD`, un mot de passe est généré et affiché une seule fois pendant le déploiement. Dans les deux cas, il devra être changé à la première connexion. Retirez `ADMIN_PASSWORD` du fichier après la première connexion.
+`DB_ROOT_PASSWORD` est obligatoire ; le script refuse une valeur vide, `secret`, `root-secret`, ou égale à `DB_PASSWORD`.
+
+Pour fixer le premier compte administrateur, renseignez dans `.env.production` `ADMIN_EMAIL` et `ADMIN_NAME`, et dans `.env.secrets` `ADMIN_PASSWORD`. Sans `ADMIN_PASSWORD`, un mot de passe est généré et affiché une seule fois pendant le déploiement ; s'il est fourni, il n'est pas réaffiché. Dans les deux cas, il devra être changé à la première connexion. Videz `ADMIN_PASSWORD` dans `.env.secrets` après la première connexion.
 
 ## 4. Configurer le proxy inverse
 
@@ -178,7 +206,8 @@ cd /opt/stockflow
 scripts/deploy.sh
 ```
 
-Le script prend en argument facultatif un nom de version. Par défaut, il utilise l'identifiant court du commit courant, qui devient l'étiquette de l'image (`stockflow-app:a0859fe` par exemple).
+Le script prend en argument facultatif un nom de version, et l'option `--local-rehearsal` (section 6).
+ Par défaut, il utilise l'identifiant court du commit courant, qui devient l'étiquette de l'image (`stockflow-app:a0859fe` par exemple).
 
 La première construction de l'image prend plusieurs minutes.
 
@@ -198,7 +227,17 @@ Connectez-vous ensuite avec le compte administrateur et suivez `docs/08-user-gui
 
 ## 6. Ce que fait le script de déploiement
 
-Avant toute action, `scripts/deploy.sh` vérifie que `.env.production` existe et contient `APP_ENV=production`, `APP_DEBUG=false` et une `APP_KEY`. Sinon, il s'arrête. Il s'arrête aussi à la première commande en erreur.
+Avant toute action, `scripts/deploy.sh` vérifie, et s'arrête au premier manquement :
+
+- `.env.production` et `.env.secrets` existent, ne sont pas suivis par Git et sont ignorés par `.gitignore` ;
+- `APP_ENV=production`, `APP_DEBUG=false`, une `APP_KEY` en `base64:` ;
+- `DB_ROOT_PASSWORD` et `ADMIN_PASSWORD` sont absents de `.env.production` ;
+- `DB_PASSWORD` et `DB_ROOT_PASSWORD` ne sont ni vides ni des valeurs d'exemple (`secret`, `root-secret`, `password`) et sont différents ;
+- `APP_URL` commence par `https://` et `SESSION_SECURE_COOKIE=true`.
+
+Il s'arrête aussi à la première commande en erreur.
+
+Répétition sur un poste : `scripts/deploy.sh --local-rehearsal` lève seulement les deux contrôles HTTPS (`APP_URL` et `SESSION_SECURE_COOKIE`), pour tester la chaîne de production en HTTP sur `http://localhost:<APP_PORT>`. Le script l'annonce par deux lignes commençant par `!!!`. Cette option ne doit jamais servir sur un serveur réel : sans cookie `Secure`, la session circulerait en clair.
 
 | Étape | Action |
 | :-- | :-- |
@@ -278,13 +317,13 @@ Toute donnée saisie entre la sauvegarde et le retour arrière sera perdue. Note
 2. Les trois conteneurs tournent :
 
    ```bash
-   docker compose -f compose.prod.yaml --env-file .env.production ps
+   scripts/prod-compose.sh ps
    ```
 
 3. Le stock est cohérent (déjà lancé par le script, à relancer après une restauration) :
 
    ```bash
-   docker compose -f compose.prod.yaml --env-file .env.production exec app php artisan stock:verify
+   scripts/prod-compose.sh exec app php artisan stock:verify
    ```
 
 4. Dans un navigateur, `https://stock.example.ci/login` affiche la page de connexion avec sa mise en forme et le nom de l'entreprise. Le cadenas du navigateur ne signale aucun contenu non sécurisé.
@@ -294,24 +333,109 @@ Toute donnée saisie entre la sauvegarde et le retour arrière sera perdue. Note
 8. Aucune erreur récente dans les journaux :
 
    ```bash
-   docker compose -f compose.prod.yaml --env-file .env.production logs --tail=100 app web
-   docker compose -f compose.prod.yaml --env-file .env.production exec app sh -c 'tail -n 50 storage/logs/laravel-*.log'
+   scripts/prod-compose.sh logs --tail=100 app web
+   scripts/prod-compose.sh exec app sh -c 'tail -n 50 storage/logs/laravel-*.log'
    ```
 
 Ne créez pas de vente ou de mouvement de test en production : il resterait dans l'historique, qui ne se supprime pas.
 
-## 10. Ce qu'il ne faut jamais faire
+## 10. Journaux
 
-- Charger le jeu de démonstration (`DemoSeeder`) ou lancer `php artisan migrate:fresh` : la base serait vidée et remplie de comptes au mot de passe public. Le seeder refuse de s'exécuter quand `APP_ENV=production`, mais `migrate:fresh` vide la base quand même.
+Deux familles de journaux, avec leur propre rotation.
+
+| Journal | Où | Rotation et conservation | Réglage |
+| :-- | :-- | :-- | :-- |
+| Application Laravel | Volume `logs`, fichiers `storage/logs/laravel-AAAA-MM-JJ.log` | Un fichier par jour ; Laravel supprime les fichiers de plus de `LOG_DAILY_DAYS` jours (30 par défaut) | `LOG_CHANNEL=stack`, `LOG_STACK=daily`, `LOG_LEVEL=warning`, `LOG_DAILY_DAYS` dans `.env.production` |
+| Sorties des conteneurs : PHP-FPM, accès et erreurs Nginx, MySQL | Pilote `json-file` de Docker | 5 fichiers de 10 Mo au plus par conteneur, soit 50 Mo par service ; les plus anciens sont écrasés | Bloc `x-logging` de `compose.prod.yaml` |
+
+Sans ces réglages, le pilote `json-file` de Docker garde tout, sans limite : le journal d'accès de Nginx finirait par remplir le disque. Les options s'appliquent aux conteneurs recréés, donc au prochain `scripts/deploy.sh`.
+
+Consultation :
+
+```bash
+scripts/prod-compose.sh logs --since 1h web app
+scripts/prod-compose.sh exec app sh -c 'ls -l storage/logs && tail -n 100 storage/logs/laravel-$(date +%Y-%m-%d).log'
+```
+
+Pour garder les journaux Laravel plus longtemps (par exemple 90 jours pour un audit), mettez `LOG_DAILY_DAYS=90` dans `.env.production` puis redéployez. Le journal d'audit métier, lui, est en base (`audit_logs`) et n'est concerné par aucune rotation.
+
+Les journaux ne sont pas sauvegardés par `scripts/backup.sh`. Si un incident doit être analysé plus tard, copiez-les hors du conteneur :
+
+```bash
+scripts/prod-compose.sh exec -T app tar -czf - -C storage logs > journaux_$(date +%F).tar.gz
+```
+
+## 11. Tâches planifiées
+
+L'application ne déclare aucune tâche planifiée Laravel (`routes/console.php`) et n'utilise pas de file d'attente (`QUEUE_CONNECTION=sync`) : ni `schedule:run`, ni `queue:work` ne sont à lancer. Les sessions et le cache en base sont purgés au fil des requêtes.
+
+Tâches à planifier sur le serveur, dans la crontab de `root` :
+
+| Heure | Tâche | Référence |
+| :-- | :-- | :-- |
+| 2 h 30 chaque nuit | `scripts/backup.sh /var/backups/stockflow` | `backup-restore.md`, section 3 |
+| 3 h 30 chaque nuit | Copie hors site des sauvegardes | `backup-restore.md`, section 5 |
+| Une fois par semaine (conseillé) | `php artisan stock:verify` dans le conteneur `app` | Contrôle de cohérence du stock ; un code de sortie non nul signale un écart |
+| Une fois par mois | `docker image prune -f` | Supprime les images des versions remplacées qui ne sont plus étiquetées |
+
+Exemple pour le contrôle hebdomadaire, le dimanche à 4 h :
+
+```cron
+0 4 * * 0 cd /opt/stockflow && scripts/prod-compose.sh exec -T app php artisan stock:verify >> /var/log/stockflow-verify.log 2>&1
+```
+
+## 12. Liste de contrôle avant une mise en production
+
+Établie à partir du modèle `engineering:deploy-checklist`, adaptée au projet.
+
+Avant :
+
+- [ ] Le workflow CI est vert sur le commit à déployer (tests, concurrence, Pint, audits).
+- [ ] Le `CHANGELOG.md` est lu ; les nouvelles variables sont ajoutées à `.env.production`.
+- [ ] `APP_ENV=production`, `APP_DEBUG=false`, `APP_KEY` inchangée, `SESSION_SECURE_COOKIE=true`, `TRUSTED_PROXIES=*` derrière le proxy.
+- [ ] Les migrations nouvelles ont tourné en CI sur MySQL 8.4 ; aucune ne supprime de colonne ou de table métier sans décision consignée.
+- [ ] Une sauvegarde récente existe hors site et le dernier test de restauration date de moins d'un mois.
+- [ ] Le commit en service est noté pour le retour arrière (section 8).
+- [ ] Les utilisateurs sont prévenus de l'interruption.
+
+Pendant :
+
+- [ ] `scripts/deploy.sh` se termine par « Déploiement de la version ... terminé. ».
+- [ ] `stock:verify` répond « aucun écart » (étape 7/7).
+
+Après :
+
+- [ ] Les vérifications de la section 9 sont faites.
+- [ ] `scripts/prod-compose.sh ps` montre `db`, `app` et `web` « healthy ».
+- [ ] Aucune erreur nouvelle dans les journaux pendant 15 minutes d'utilisation réelle.
+
+Déclencheurs du retour arrière (section 8) : `stock:verify` signale un écart, `/login` ne répond pas 200, une vente ou un transfert échoue en erreur 500, ou une migration a échoué.
+
+## 13. Ce qu'il ne faut jamais faire
+
+- Charger le jeu de démonstration (`DemoSeeder`) ou lancer `php artisan migrate:fresh` : la base serait vidée et remplie de comptes au mot de passe public. Quand `APP_ENV=production`, le seeder refuse de s'exécuter, et `migrate:fresh`, `migrate:refresh`, `migrate:reset`, `migrate:rollback` et `db:wipe` sont refusés par l'application. Ces garde-fous dépendent de `APP_ENV` : un `.env.production` mal rempli les désactive.
 - Mettre `APP_DEBUG=true` : les pages d'erreur afficheraient le code, la configuration et les secrets.
-- Exposer MySQL : n'ajoutez pas de section `ports` au service `db`. Pour consulter la base, passez par `docker compose ... exec db mysql`.
+- Exposer MySQL : n'ajoutez pas de section `ports` au service `db`. Pour consulter la base, passez par `scripts/prod-compose.sh exec db mysql`.
 - Publier le port 8080 au-delà de `127.0.0.1`, ou servir l'application en HTTP simple.
-- Lancer `docker compose ... down -v` : l'option `-v` supprime les volumes, donc la base et les images.
+- Lancer `scripts/prod-compose.sh down -v` : l'option `-v` supprime les volumes, donc la base et les images.
 - Modifier une quantité de stock directement en SQL ou par `php artisan tinker` : seul le moteur de stock garde l'historique cohérent. Une correction passe par un ajustement justifié dans l'application.
-- Versionner `.env.production` ou l'envoyer par messagerie.
+- Versionner `.env.production` ou `.env.secrets`, ou les envoyer par messagerie.
 - Changer `APP_KEY` sur une installation en service.
 
-## 11. Limites connues
+## 14. Durcissement des images
+
+| Mesure | Où |
+| :-- | :-- |
+| Le code de l'image `app` appartient à `root` et n'est inscriptible par personne d'autre ; PHP-FPM tourne sous `www-data` et n'écrit que dans `storage/` et `bootstrap/cache/` | `docker/php/Dockerfile`, étape `prod` |
+| Ni `git`, ni `unzip`, ni client MySQL dans l'image `app` de production : `mysqldump` et `mysql` des sauvegardes tournent dans le conteneur `db` | `docker/php/Dockerfile`, étape `dev` |
+| `zend.exception_ignore_args = On` : les traces d'exception des journaux ne contiennent pas les arguments des fonctions | `docker/php/php.ini` |
+| `X-Content-Type-Options`, `X-Frame-Options` et `Referrer-Policy` posés par Nginx sur toutes les réponses, y compris les fichiers statiques ; les mêmes en-têtes venant de PHP sont masqués pour éviter les doublons | `docker/nginx/default.conf` |
+| Contrôle de santé de MySQL sans mot de passe sur la ligne de commande (`MYSQL_PWD`) | `compose.prod.yaml` |
+| `DB_ROOT_PASSWORD` et `ADMIN_PASSWORD` hors de l'environnement de PHP | `.env.secrets`, `scripts/prod-compose.sh` |
+
+En développement, le contrôle de santé de `compose.yaml` passe encore le mot de passe root par `-p`. Il n'a pas été modifié : changer la définition du service recréerait les conteneurs `db` et `db-test` du poste au prochain `docker compose up`, en vidant `db-test` pendant une éventuelle suite de tests. Le mot de passe concerné est celui, public, de `.env.example`. À aligner lors d'une prochaine reconstruction volontaire de l'environnement.
+
+## 15. Limites connues
 
 - L'application n'envoie pas d'e-mail : un mot de passe oublié est réinitialisé par l'administrateur (D-010).
 - La maintenance couvre les migrations, pas la construction des images : celle-ci se fait pendant que l'ancienne version sert encore les utilisateurs, ce qui raccourcit l'interruption.
