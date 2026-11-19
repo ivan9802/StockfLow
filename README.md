@@ -45,10 +45,16 @@ PHP, Composer, Node et MySQL tournent dans les conteneurs : rien d'autre n'est �
 
 N'utilisez pas le PHP installé sur le poste (XAMPP ou autre). Le projet exige PHP 8.4, et ses dépendances (`vendor/`) vivent dans un volume Docker, pas dans le dossier du projet. Lancé avec le PHP du poste, `php artisan` s'arrête avec un message qui indique la bonne commande.
 
-Sous Windows, le raccourci `artisan.cmd`, à la racine du projet, lance artisan dans le conteneur :
+Sous Windows, le raccourci `artisan.cmd`, à la racine du projet, lance artisan dans le conteneur. Depuis le dossier du projet, dans l'invite de commandes (cmd) :
 
 ```bat
 artisan.cmd migrate:status
+```
+
+Dans PowerShell, qui ne lance pas un script du dossier courant sans chemin, préfixez par `.\` :
+
+```powershell
+.\artisan.cmd migrate:status
 ```
 
 Il équivaut à `docker compose exec app php artisan migrate:status`.

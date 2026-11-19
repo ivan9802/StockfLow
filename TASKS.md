@@ -129,6 +129,7 @@ Aucun commit ni push pendant cette mission. Les agents sont les rôles d'`AGENTS
 | T-908f | Documentation de production après T-908b : guide administrateur, README, guide du développeur, journal des versions | DOC (10) | Moyenne | Terminé | T-908b | `README.md`, `CHANGELOG.md`, `docs/05-development/developer-guide.md`, `docs/08-user-guides/admin-guide.md` | Plus aucune commande de production hors `scripts/prod-compose.sh` |
 | T-908g | `.gitignore` (`.env.secrets`) et commentaires de `.env.example` | CTO | Haute | Terminé | T-908b | `.gitignore`, `.env.example` | `git check-ignore` confirme que `.env.secrets` est ignoré |
 | T-908h | Retouches après la vérification QA : QA-1 (message administrateur des scripts), QA-3 (`artisan.cmd` en CRLF), DOC-1 à DOC-3 | DevOps (9), DOC (10), CTO | Basse | Terminé | T-907 | `scripts/install.*`, `docs/07-deployment/local-install.md`, `README.md`, `developer-guide.md`, `artisan.cmd`, `CLAUDE.md` | `bash -n`, analyseur PowerShell, `file artisan.cmd` : CRLF |
+| T-910 | Installation vérifiée depuis un vrai `git clone` de la branche commitée ; correction DOC-5 (`.rtisan.cmd` sous PowerShell) | QA (7), DOC (10) | Haute | Terminé | T-909 | `docs/06-testing/installation-check.md`, `README.md`, `developer-guide.md` | `install.sh --demo --yes` code 0, `stock:verify` sans écart, connexion et tableau de bord à 200 |
 | T-909 | Rapport final de la mission | CTO | Haute | Terminé | T-908 | | Rapport en douze points, anomalies restantes explicites |
 
 ## Anomalies et points ouverts

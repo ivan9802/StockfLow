@@ -168,3 +168,50 @@ Oui : l'installation depuis un clone propre fonctionne sans aide. La commande un
 Les huit étapes du scénario sont réussies et chacune a été exécutée. Restent trois anomalies mineures (QA-1, QA-3, et l'information QA-2) et quatre écarts de documentation, dont un corrigé ici (DOC-4) ; aucun n'empêche l'installation.
 
 Réserve : la copie a été faite à partir du dossier de travail, pas d'un vrai `git clone`, puisque rien n'est commité. Le contrôle devra être refait par un `git clone` réel une fois la mission commitée et poussée, en particulier pour les fins de ligne de `artisan.cmd` (QA-3).
+
+## Vérification depuis un vrai clone (T-910)
+
+Exécutée le 19/11/2026, après le commit local de la mission (branche `phase-3/initialisation`, commit `740c89b`, dossier de travail propre). Rien n'est poussé : le clone part du dépôt local. Mêmes règles qu'en T-907 : ports 18080, 13307 et 15173, projet Compose `stackflow` de l'utilisateur non touché.
+
+```bash
+git clone --branch phase-3/initialisation D:/projet_encours/stackflow D:/projet_encours/stockflow-clone
+```
+
+Clone en 11 s, 340 fichiers, projet Compose `stockflow-clone`. Absents du clone : `.env`, `.env.production`, `vendor/`, `node_modules/`, `public/build/`, `backups/`.
+
+| N° | Point vérifié | Statut | Preuve |
+| :-- | :-- | :-- | :-- |
+| 1 | Fins de ligne, droits, BOM reçus par le clone | Réussi | `file artisan.cmd` : « with CRLF line terminators » ; `git ls-files --eol` : 338 fichiers LF, `artisan.cmd` seul en CRLF, 1 binaire ; `git ls-files -s scripts` : `100755` pour les six `.sh` (`backup`, `deploy`, `install`, `prod-compose`, `restore`, `start`), `100644` pour les deux `.ps1` ; `scripts/install.ps1` et `scripts/start.ps1` commencent par le BOM `ef bb bf` |
+| 2 | `artisan.cmd --version` par cmd.exe, conteneurs démarrés | Réussi | `cmd.exe /d /c "cd /d D:\projet_encours\stockflow-clone && artisan.cmd --version"` : « Laravel Framework 13.42.0 », code 0, plus aucun message « 'em' n'est pas reconnu ». La commande n'attend pas de terminal : elle répond avec une sortie capturée et sans entrée interactive. Voir la remarque ci-dessous sur l'environnement de l'outil et l'écart DOC-5 |
+| 3 | `APP_PORT=18080 FORWARD_DB_PORT=13307 VITE_PORT=15173 bash scripts/install.sh --demo --yes` | Réussi | Code 0, 986 s (16 min 26 s) : image `stockflow-clone-app` construite, 117 paquets Composer, 37 paquets npm (2 min), compilation en 1 min 30 s, `DemoSeeder` en 130 s (« 61 produits, 1344 mouvements, 295 ventes »), étape 10 « 1344 mouvements rejoués sur 122 lignes de stock, aucun écart », étape 11 `/up : 200`. Les libellés des étapes 8 et 9 affichent désormais « jusqu'à quelques minutes » et « quelques minutes » (DOC-3 pris en compte dans le script) |
+| 4 | Relance sans démonstration, message final (QA-1) | Réussi | `bash scripts/install.sh` : code 0, 449 s. « .env existe déjà : conservé tel quel. », « APP_KEY déjà définie : conservée. », « Nothing to migrate. ». Empreinte de `.env` identique avant et après. Message final : « Un administrateur existe déjà : compte inchangé, connectez-vous avec ses identifiants habituels. » ; l'adresse `admin@stockflow.example` n'est plus annoncée. QA-1 est corrigée |
+| 5 | Accès | Réussi | `/up` 200 ; `/login` 200, jeton CSRF de 40 caractères ; `POST /login` avec `admin@stockflow.test` et le mot de passe public de démonstration : 302 vers `http://localhost:18080/` ; `/dashboard` 200, « Tableau de bord » présent 3 fois ; `/internal/dashboard?period=last_30_days` 200 en `application/json` (`active_products` 60, `low_count` 8, `out_count` 7) ; `php artisan stock:verify` : aucun écart |
+
+Après l'installation et la relance, `git status` dans le clone ne montre aucun fichier modifié ni ajouté : les fichiers produits (`.env`, `public/build/`, journaux) sont bien ignorés.
+
+Remarque sur le point 2. Dans l'environnement de l'outil qui a mené le contrôle, la variable `NoDefaultCurrentDirectoryInExePath=1` est définie : cmd.exe y refuse de lancer un programme du dossier courant sans chemin, et `artisan.cmd` seul répond « n'est pas reconnu ». Avec la variable vidée (`set NoDefaultCurrentDirectoryInExePath=`), ou avec `.\artisan.cmd`, la commande répond normalement. Un poste Windows ordinaire n'a pas cette variable ; ce n'est pas un défaut du projet.
+
+Durées : les deux installations de T-910 ont été deux fois plus longues que le premier essai Bash de T-907 (476 s), comme l'essai PowerShell (936 s). Les étapes ralenties sont `npm ci`, la compilation et le seeder, qui dépendent de la charge du poste ; les libellés « quelques minutes » des scripts restent justes.
+
+### Écart supplémentaire
+
+| N° | Fichier et ligne | Constat | Correction proposée | Agent |
+| :-- | :-- | :-- | :-- | :-- |
+| DOC-5 | `docs/05-development/developer-guide.md:113` | La colonne « Windows (cmd ou PowerShell) » donne `artisan.cmd migrate:status`. Sous PowerShell, cette forme échoue : « Le terme « artisan.cmd » n'est pas reconnu comme nom d'applet de commande », car PowerShell ne lance jamais un programme du dossier courant sans `.\`. `.\artisan.cmd --version` fonctionne (vérifié dans le clone). Même remarque pour `README.md:51` et `developer-guide.md:332`, qui ne précisent pas le shell | Écrire « cmd : `artisan.cmd migrate:status` ; PowerShell : `.\artisan.cmd migrate:status` » | DOC (10) |
+
+### Bilan des anomalies de T-907
+
+| N° | État après T-910 |
+| :-- | :-- |
+| QA-1 | Corrigée et vérifiée (point 4) |
+| QA-2 | Inchangée, information seulement |
+| QA-3 | Sans objet pour un clone : `artisan.cmd` arrive en CRLF et ne produit plus d'erreur (points 1 et 2) |
+| Réserve de la conclusion (copie et non clone) | Levée : le scénario est confirmé sur un vrai `git clone` |
+
+### Nettoyage
+
+Depuis le clone, `APP_PORT=18080 FORWARD_DB_PORT=13307 VITE_PORT=15173 docker compose --profile test down -v --rmi local` (code 0 : conteneurs, réseau `stockflow-clone_default`, volumes `dbdata`, `vendor`, `node_modules` et image `stockflow-clone-app` supprimés), puis suppression du dossier `D:\projet_encours\stockflow-clone`. Contrôle : aucun conteneur, volume, réseau ni image dont le nom contient `clone` ou `qa`. L'installation de l'utilisateur tourne toujours (trois conteneurs `stackflow-*`, volumes `stackflow_*` intacts, `http://localhost:8080/up` 200) et son dossier de travail reste propre (`git status` vide avant l'ajout de cette section).
+
+### Conclusion de T-910
+
+L'installation depuis un vrai `git clone` fonctionne sans aide : les fichiers arrivent avec les bonnes fins de ligne, les bons droits et le BOM attendu, la commande unique installe l'application et la démonstration sans écart de stock, la relance est sans casse et annonce désormais un message juste, et la connexion réelle aboutit au tableau de bord. Seul reste l'écart de documentation DOC-5, mineur.

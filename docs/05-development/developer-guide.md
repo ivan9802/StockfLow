@@ -108,10 +108,10 @@ docker compose exec db sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql --default-charac
 
 Toutes les commandes PHP, Composer et npm s'exécutent dans le conteneur `app`.
 
-| Besoin | Windows (cmd ou PowerShell) | Linux, macOS, Git Bash |
-| :-- | :-- | :-- |
-| Commande artisan | `artisan.cmd migrate:status` | `docker compose exec app php artisan migrate:status` |
-| Commande quelconque | `docker compose exec app <commande>` | `docker compose exec -T app <commande>` |
+| Besoin | Windows, invite de commandes (cmd) | Windows, PowerShell | Linux, macOS, Git Bash |
+| :-- | :-- | :-- | :-- |
+| Commande artisan | `artisan.cmd migrate:status` | `.\artisan.cmd migrate:status` | `docker compose exec app php artisan migrate:status` |
+| Commande quelconque | `docker compose exec app <commande>` | `docker compose exec app <commande>` | `docker compose exec -T app <commande>` |
 
 Sous Git Bash, exportez d'abord `MSYS_NO_PATHCONV=1`, sinon les chemins passés au conteneur sont convertis en chemins Windows. L'option `-T` évite l'erreur de terminal de Git Bash et sert aussi dans les scripts.
 
@@ -329,7 +329,7 @@ Conventions de code, en bref :
 
 | Symptôme | Cause | Que faire |
 | :-- | :-- | :-- |
-| `php artisan` répond « StockFlow s'exécute dans Docker, pas avec le PHP de ce poste », ou une erreur sur `vendor/autoload.php` | Commande lancée avec le PHP du poste (XAMPP) : `vendor/` est dans un volume Docker et le PHP du poste n'est pas en 8.4 | `artisan.cmd <commande>` sous Windows, ou `docker compose exec app php artisan <commande>` |
+| `php artisan` répond « StockFlow s'exécute dans Docker, pas avec le PHP de ce poste », ou une erreur sur `vendor/autoload.php` | Commande lancée avec le PHP du poste (XAMPP) : `vendor/` est dans un volume Docker et le PHP du poste n'est pas en 8.4 | `artisan.cmd <commande>` dans cmd, `.\artisan.cmd <commande>` dans PowerShell, ou `docker compose exec app php artisan <commande>` |
 | Le site ne répond plus après un redémarrage du poste | Les conteneurs de développement ne redémarrent pas seuls ; Docker Desktop peut aussi être arrêté | Lancer Docker Desktop, puis `pwsh -File scripts/start.ps1` ou `bash scripts/start.sh` |
 | `SQLSTATE[HY000] [2002]` ou base injoignable juste après le démarrage | MySQL met plusieurs minutes à s'initialiser après un redémarrage du poste | Attendre l'état « healthy » de `db` dans `docker compose ps` ; les scripts de démarrage attendent jusqu'à 10 minutes |
 | Les tests échouent tout de suite sur la connexion à `db-test` | Base de test non démarrée (profil `test`), ou encore en cours d'initialisation | `docker compose --profile test up -d db-test`, puis attendre « healthy » dans `docker compose --profile test ps` |
