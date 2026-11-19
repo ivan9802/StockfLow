@@ -29,6 +29,19 @@ final class Format
         return $date ? $date->format('d/m/Y H:i') : '';
     }
 
+    /** Variation en pourcentage, une décimale au plus : « +12,5 % », « -3 % », « 0 % ». */
+    public static function percent(?float $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        $text = rtrim(rtrim(number_format(abs($value), 1, ',', "\u{00A0}"), '0'), ',');
+        $sign = $value > 0 ? '+' : ($value < 0 ? '-' : '');
+
+        return $sign.$text."\u{00A0}%";
+    }
+
     /** Écart signé : « +3 », « -2 », « 0 ». */
     public static function signed(?int $value): string
     {

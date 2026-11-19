@@ -28,7 +28,7 @@ $light: $sf-surface-sunken;
 $dark: $sf-sidebar-bg;
 
 $min-contrast-ratio: 4.5;
-$enable-shadows: false;
+$enable-shadows: false; // ombres posées à la main, composant par composant
 $enable-gradients: false;
 $enable-rounded: true;
 $enable-reduced-motion: true;
@@ -85,14 +85,16 @@ $spacers: (
   7: $spacer * 0.75,
 );
 
-// Rayons et bordures : pas de pilule, pas d'ombre sur les cartes.
-$border-radius: 4px;
-$border-radius-sm: 2px;
-$border-radius-lg: 6px;
-$border-radius-pill: 2px;
-$box-shadow: 0 2px 8px rgba(30, 36, 34, 0.12);
-$box-shadow-sm: none;
-$box-shadow-lg: 0 2px 8px rgba(30, 36, 34, 0.12);
+// Rayons et ombres : rayons modérés, ombres très légères qui détachent les surfaces
+// sans effet de flottement (design system v2, docs/10-ui-ux-dashboard/design-system.md).
+$border-radius: 6px;
+$border-radius-sm: 4px;
+$border-radius-lg: 10px;
+$border-radius-xl: 14px;
+$border-radius-pill: 50rem;
+$box-shadow-sm: 0 1px 2px rgba(30, 36, 34, 0.06);
+$box-shadow: 0 1px 2px rgba(30, 36, 34, 0.06), 0 4px 12px rgba(30, 36, 34, 0.06);
+$box-shadow-lg: 0 8px 28px rgba(30, 36, 34, 0.14);
 
 // Surfaces.
 $card-bg: $sf-surface;
@@ -145,7 +147,7 @@ $badge-font-size: 0.8125rem;
 $badge-font-weight: 600;
 $badge-padding-y: 0.2em;
 $badge-padding-x: 0.5em;
-$badge-border-radius: 2px;
+$badge-border-radius: 50rem;
 
 $breadcrumb-font-size: 0.8125rem;
 $breadcrumb-divider-color: $sf-text-muted;
@@ -157,7 +159,7 @@ $pagination-border-color: $sf-border;
 $pagination-disabled-bg: $sf-surface;
 $pagination-disabled-color: $sf-text-muted;
 
-$alert-border-radius: 4px;
+$alert-border-radius: 10px;
 $progress-bg: $sf-surface-sunken;
 $progress-height: 0.5rem;
-$progress-border-radius: 2px;
+$progress-border-radius: 50rem;

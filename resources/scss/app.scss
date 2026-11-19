@@ -935,3 +935,8 @@ a.kpi-card:hover {
 .col-progress {
   min-width: 7rem;
 }
+
+// Design system v2 et animations : surcharges chargées après les styles de base.
+@import "design-system";
+@import "dashboard";
+@import "motion";

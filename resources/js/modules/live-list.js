@@ -39,6 +39,10 @@ function attach(root) {
             if (!response.ok) throw new Error(String(response.status));
 
             target.innerHTML = await response.text();
+            // Apparition douce des nouvelles lignes (désactivée si moins d'animations demandées).
+            target.classList.remove('is-refreshed');
+            void target.offsetWidth;
+            target.classList.add('is-refreshed');
             if (push) window.history.replaceState({}, '', url);
         } catch (error) {
             // En cas d'échec, on retombe sur le chargement normal de la page.

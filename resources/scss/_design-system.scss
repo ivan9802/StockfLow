@@ -1,0 +1,347 @@
+// Design system v2 de StockFlow.
+// Surcharges des composants de base : elles s'appliquent à tous les écrans.
+// Référence : docs/10-ui-ux-dashboard/design-system.md.
+
+:root {
+  --sf-radius: #{$border-radius};
+  --sf-radius-lg: #{$border-radius-lg};
+  --sf-radius-xl: #{$border-radius-xl};
+  --sf-shadow-1: #{$box-shadow-sm};
+  --sf-shadow-2: #{$box-shadow};
+  --sf-shadow-3: #{$box-shadow-lg};
+  --sf-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --sf-good: #256b3c;
+  --sf-bad: #a32a1f;
+  --sf-chart-1: #{$sf-accent};
+  --sf-chart-2: #c2672e;
+  --sf-chart-3: #3d5368;
+}
+
+// ---------------------------------------------------------------- Surfaces
+
+.card,
+.table-card,
+.kpi-card,
+.guest-card {
+  border-radius: var(--sf-radius-lg);
+  box-shadow: var(--sf-shadow-1);
+}
+
+.card-header {
+  background: transparent;
+  padding: 0.875rem 1rem;
+
+  h2 {
+    font-size: 1rem;
+  }
+}
+
+.card-header:first-child {
+  border-radius: var(--sf-radius-lg) var(--sf-radius-lg) 0 0;
+}
+
+.table-card .card-header {
+  border-bottom: 1px solid var(--sf-border);
+}
+
+// En-tête de section avec lien d'action à droite.
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1.0625rem;
+  }
+
+  a {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+}
+
+// ---------------------------------------------------------------- Boutons
+
+.btn {
+  border-radius: var(--sf-radius);
+  transition: background-color 140ms var(--sf-ease), border-color 140ms var(--sf-ease), color 140ms var(--sf-ease), box-shadow 140ms var(--sf-ease), transform 140ms var(--sf-ease);
+}
+
+.btn-primary {
+  box-shadow: 0 1px 2px rgba(11, 92, 110, 0.25);
+
+  &:hover {
+    box-shadow: 0 3px 10px rgba(11, 92, 110, 0.25);
+  }
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+// État de chargement : le libellé reste lisible, un indicateur tourne à gauche.
+.btn.is-loading {
+  position: relative;
+  pointer-events: none;
+
+  &::before {
+    content: "";
+    width: 1em;
+    height: 1em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: sf-spin 700ms linear infinite;
+  }
+}
+
+// ---------------------------------------------------------------- Formulaires
+
+.form-control,
+.form-select {
+  border-radius: var(--sf-radius);
+  transition: border-color 140ms var(--sf-ease), box-shadow 140ms var(--sf-ease);
+
+  &:hover:not(:focus):not(:disabled) {
+    border-color: $sf-text-muted;
+  }
+}
+
+.form-narrow.card {
+  padding: 1.25rem;
+}
+
+// ---------------------------------------------------------------- Tableaux
+
+.data-table {
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  tbody tr {
+    transition: background-color 120ms var(--sf-ease);
+  }
+}
+
+.table-card .table-responsive {
+  border-radius: var(--sf-radius-lg) var(--sf-radius-lg) 0 0;
+}
+
+.table-foot .pagination {
+  --bs-pagination-border-radius: var(--sf-radius);
+}
+
+// ---------------------------------------------------------------- Badges
+
+.sf-badge {
+  border-radius: 50rem;
+  padding: 0.18em 0.65em;
+}
+
+// ---------------------------------------------------------------- Navigation
+
+.sidebar-nav .nav-link {
+  margin: 1px 0.5rem;
+  border-left: 0;
+  border-radius: var(--sf-radius);
+  padding-left: 0.75rem;
+  position: relative;
+  transition: background-color 140ms var(--sf-ease), color 140ms var(--sf-ease);
+
+  // Repère de la page courante : un filet arrondi à gauche.
+  &::before {
+    content: "";
+    position: absolute;
+    left: -0.5rem;
+    top: 20%;
+    bottom: 20%;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: $sf-sidebar-mark;
+    transform: scaleY(0);
+    transition: transform 180ms var(--sf-ease);
+  }
+
+  &.active::before {
+    transform: scaleY(1);
+  }
+}
+
+.sidebar-nav .nav-group {
+  padding-left: 1.25rem;
+}
+
+.app-topbar {
+  box-shadow: 0 1px 0 var(--sf-border);
+  border-bottom: 0;
+}
+
+.dropdown-menu {
+  border-radius: var(--sf-radius-lg);
+  border-color: var(--sf-border);
+  box-shadow: var(--sf-shadow-3);
+  padding: 0.375rem;
+
+  .dropdown-item {
+    border-radius: var(--sf-radius);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+// ---------------------------------------------------------------- Modales, bandeaux, toasts
+
+.modal-content {
+  border: 0;
+  border-radius: var(--sf-radius-xl);
+  box-shadow: var(--sf-shadow-3);
+}
+
+.modal-header,
+.modal-footer {
+  border-color: var(--sf-border);
+}
+
+.alert {
+  border-width: 1px 1px 1px 4px;
+}
+
+.toast {
+  border-radius: var(--sf-radius-lg);
+  border-left-width: 4px;
+}
+
+// ---------------------------------------------------------------- États vides et chargement
+
+.empty-state .bi {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin: 0 auto 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--sf-accent-soft);
+  color: var(--sf-accent);
+  font-size: 1.5rem;
+}
+
+// Bloc dont les données se rechargent : voile léger et curseur d'attente.
+[aria-busy="true"] {
+  position: relative;
+  cursor: progress;
+
+  > * {
+    opacity: 0.55;
+    transition: opacity 160ms var(--sf-ease);
+  }
+}
+
+.skeleton {
+  display: inline-block;
+  min-width: 4rem;
+  height: 1em;
+  border-radius: var(--sf-radius);
+  background: linear-gradient(90deg, $sf-surface-sunken 25%, lighten($sf-surface-sunken, 3%) 50%, $sf-surface-sunken 75%);
+  background-size: 200% 100%;
+  animation: sf-shimmer 1.2s linear infinite;
+}
+
+// ---------------------------------------------------------------- Connexion
+
+.guest-shell.is-login {
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+
+  .login-aside {
+    flex: 0 0 42%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 3rem;
+    background: $sf-sidebar-bg;
+    color: $sf-sidebar-text;
+
+    .name {
+      font-family: $headings-font-family;
+      font-weight: 700;
+      font-size: 1.75rem;
+
+      span {
+        color: $sf-sidebar-mark;
+      }
+    }
+
+    .pitch {
+      max-width: 26rem;
+      font-size: 1.125rem;
+      line-height: 1.6;
+      color: $sf-sidebar-text;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 1.5rem 0 0;
+      color: $sf-sidebar-muted;
+
+      li {
+        display: flex;
+        gap: 0.625rem;
+        margin-bottom: 0.625rem;
+      }
+
+      .bi {
+        color: $sf-sidebar-mark;
+      }
+    }
+
+    .company {
+      color: $sf-sidebar-muted;
+      font-size: 0.875rem;
+    }
+  }
+
+  .login-main {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
+  .guest-card {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .guest-shell.is-login {
+    flex-direction: column;
+
+    .login-aside {
+      flex: none;
+      padding: 1.5rem;
+
+      .pitch,
+      ul {
+        display: none;
+      }
+    }
+  }
+}

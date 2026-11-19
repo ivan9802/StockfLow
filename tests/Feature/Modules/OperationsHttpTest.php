@@ -9,7 +9,6 @@ use App\Models\InventorySession;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Sale;
-use App\Models\StockMovement;
 use App\Models\StockTransfer;
 use App\Models\Supplier;
 use App\Models\User;
@@ -236,16 +235,18 @@ class OperationsHttpTest extends TestCase
         $this->stock($a, $this->warehouse, 10);
         $this->stock($b, $this->store, 4);
 
-        $data = $this->actingAs($this->manager)->getJson('/internal/dashboard')->assertOk()->json('kpis');
+        $data = $this->actingAs($this->manager)->getJson('/internal/dashboard?period=today')->assertOk()->json();
 
-        $this->assertSame(10 * 1000 + 4 * 2500, $data['stock_value']);
-        $this->assertSame(3, $data['active_products']);
-        $this->assertSame(1, $data['low_count']);
-        $this->assertSame(1, $data['out_count']);
-        $this->assertSame(StockMovement::whereDate('created_at', today())->count(), $data['movements_today']);
+        $this->assertSame(10 * 1000 + 4 * 2500, $data['snapshot']['stock_value']);
+        $this->assertSame(14, $data['snapshot']['total_units']);
+        $this->assertSame(3, $data['snapshot']['active_products']);
+        $this->assertSame(1, $data['snapshot']['low_count']);
+        $this->assertSame(1, $data['snapshot']['out_count']);
+        $this->assertSame(14, $data['kpis']['entries_units']['value'], 'Deux réceptions du jour : 10 + 4 unités.');
 
-        $agentData = $this->actingAs($this->agent)->getJson('/internal/dashboard')->json('kpis');
-        $this->assertArrayNotHasKey('stock_value', $agentData, 'Le vendeur ne voit pas la valeur du stock.');
+        $agentData = $this->actingAs($this->agent)->getJson('/internal/dashboard')->json();
+        $this->assertArrayNotHasKey('stock_value', $agentData['snapshot'], 'Le vendeur ne voit pas la valeur du stock.');
+        $this->assertArrayNotHasKey('entries_units', $agentData['kpis'], 'Le vendeur ne voit pas les mouvements.');
     }
 
     public function test_les_exports_csv_et_pdf(): void
@@ -311,6 +312,6 @@ class OperationsHttpTest extends TestCase
             $this->actingAs($this->admin)->get($uri)->assertOk();
         }
 
-        $this->actingAs($this->agent)->get('/dashboard')->assertOk()->assertSee('Mes ventes du jour');
+        $this->actingAs($this->agent)->get('/dashboard')->assertOk()->assertSee('Mon chiffre d')->assertDontSee('Valeur du stock');
     }
 }

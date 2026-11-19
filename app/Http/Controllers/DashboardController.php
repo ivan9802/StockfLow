@@ -2,30 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Sale;
+use App\Http\Requests\DashboardPeriodRequest;
 use App\Services\DashboardService;
-use Illuminate\Http\Request;
+use App\Support\Period;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request, DashboardService $dashboard): View
+    /**
+     * Le tableau de bord est rendu complet par le serveur (lisible sans JavaScript),
+     * puis actualisé par Fetch à chaque changement de période.
+     */
+    public function index(DashboardPeriodRequest $request, DashboardService $dashboard): View
     {
         $user = $request->user();
-
-        if (! $user->can('dashboard.full')) {
-            // Variante réduite du vendeur : ses ventes du jour et les ruptures.
-            return view('dashboard.agent', [
-                'kpis' => $dashboard->kpis($user),
-                'latestSales' => Sale::where('user_id', $user->id)->latest('id')->limit(8)->get(),
-            ]);
-        }
+        $period = $request->period();
 
         return view('dashboard.index', [
-            'kpis' => $dashboard->kpis($user),
-            'byWarehouse' => $dashboard->byWarehouse(),
-            'movements' => $dashboard->latestMovements(),
-            'toReorder' => $dashboard->toReorder(),
+            'data' => $dashboard->forPeriod($period, $user, $request->wantsComparison()),
+            'presets' => Period::PRESETS,
+            'full' => $user->can('dashboard.full'),
+            'movements' => $user->can('movements.view') ? $dashboard->latestMovements() : collect(),
+            'sales' => $dashboard->latestSales($user),
+            'toReorder' => $user->can('alerts.view') ? $dashboard->toReorder() : collect(),
+            'notifications' => $user->can('alerts.view') ? $user->notifications()->latest()->limit(5)->get() : collect(),
             'refreshSeconds' => (int) config('stockflow.dashboard_refresh_seconds', 30),
         ]);
     }

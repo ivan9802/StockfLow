@@ -3,27 +3,23 @@
 namespace App\Http\Controllers\Internal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DashboardPeriodRequest;
 use App\Services\DashboardService;
-use App\Support\Format;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
-/** Indicateurs du tableau de bord, rafraîchis par Fetch à intervalle régulier. */
+/**
+ * Données du tableau de bord pour une période, appelées par Fetch quand
+ * l'utilisateur change de période ou lors du rafraîchissement automatique.
+ */
 class DashboardDataController extends Controller
 {
-    public function __invoke(Request $request, DashboardService $dashboard): JsonResponse
+    public function __invoke(DashboardPeriodRequest $request, DashboardService $dashboard): JsonResponse
     {
-        $kpis = $dashboard->kpis($request->user());
+        $user = $request->user();
 
-        // Valeurs déjà formatées pour l'affichage, en plus des valeurs brutes.
-        $formatted = collect($kpis)->map(fn ($value, $key) => str_contains($key, 'value') || str_contains($key, 'amount')
-            ? Format::money($value) : Format::number($value));
-
-        return response()->json([
-            'kpis' => $kpis,
-            'formatted' => $formatted,
-            'alerts' => $request->user()->can('alerts.view') ? $request->user()->unreadNotifications()->count() : 0,
-            'updated_at' => now()->format('H:i:s'),
+        return response()->json($dashboard->forPeriod($request->period(), $user, $request->wantsComparison()) + [
+            'alerts' => $user->can('alerts.view') ? $user->unreadNotifications()->count() : 0,
+            'updated_at' => now()->format('H:i'),
         ]);
     }
 }

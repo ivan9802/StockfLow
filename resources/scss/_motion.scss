@@ -1,0 +1,160 @@
+// Animations de StockFlow.
+//
+// Règles : durées de 120 à 400 ms, courbe de décélération, aucune animation en boucle
+// hors indicateurs de chargement, rien qui retarde une saisie. Tout est désactivé quand
+// l'utilisateur demande moins d'animations (prefers-reduced-motion).
+// Pas d'attribut style dans les vues (CSP) : les décalages d'apparition utilisent nth-child.
+// Référence : docs/10-ui-ux-dashboard/animations.md.
+
+@keyframes sf-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sf-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes sf-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+// Mise en évidence d'une valeur qui vient de changer (actualisation du tableau de bord).
+@keyframes sf-flash {
+  0% {
+    background-color: rgba(11, 92, 110, 0.16);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes sf-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  // Contenu de page : apparition douce à l'ouverture.
+  .app-content > .page-header {
+    animation: sf-fade-up 320ms var(--sf-ease) both;
+  }
+
+  .app-content > :not(.page-header):not(.alert) {
+    animation: sf-fade-in 360ms var(--sf-ease) 60ms both;
+  }
+
+  // Cartes du tableau de bord : apparition en cascade.
+  .kpi-grid > * {
+    animation: sf-fade-up 400ms var(--sf-ease) both;
+
+    @for $i from 1 through 12 {
+      &:nth-child(#{$i}) {
+        animation-delay: #{($i - 1) * 45}ms;
+      }
+    }
+  }
+
+  .dash-row > * {
+    animation: sf-fade-up 420ms var(--sf-ease) 180ms both;
+  }
+
+  // Cartes cliquables : légère élévation au survol.
+  a.kpi-card,
+  .card-link {
+    transition: transform 160ms var(--sf-ease), box-shadow 160ms var(--sf-ease), border-color 160ms var(--sf-ease);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--sf-shadow-2);
+    }
+  }
+
+  // Lignes d'un tableau rechargé par un filtre instantané.
+  .is-refreshed tbody tr {
+    animation: sf-fade-in 260ms var(--sf-ease) both;
+
+    @for $i from 1 through 10 {
+      &:nth-child(#{$i}) {
+        animation-delay: #{($i - 1) * 18}ms;
+      }
+    }
+  }
+
+  .value-changed {
+    animation: sf-flash 900ms var(--sf-ease);
+    border-radius: var(--sf-radius);
+  }
+
+  .toast.showing,
+  .toast.show {
+    animation: sf-slide-in 260ms var(--sf-ease) both;
+  }
+
+  .modal.fade .modal-dialog {
+    transition: transform 220ms var(--sf-ease), opacity 220ms var(--sf-ease);
+    transform: translateY(12px) scale(0.98);
+  }
+
+  .modal.show .modal-dialog {
+    transform: none;
+  }
+
+  .dropdown-menu.show {
+    animation: sf-fade-up 160ms var(--sf-ease) both;
+  }
+
+  .search-results:not([hidden]) {
+    animation: sf-fade-up 160ms var(--sf-ease) both;
+  }
+
+  .alert {
+    animation: sf-fade-up 260ms var(--sf-ease) both;
+  }
+}
+
+// Moins d'animations demandées : tout s'affiche directement, y compris les indicateurs
+// de chargement, qui restent visibles sans tourner.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

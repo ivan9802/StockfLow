@@ -1,0 +1,300 @@
+// Tableau de bord : en-tête, sélecteur de période, cartes d'indicateurs, graphiques.
+// Référence : docs/10-ui-ux-dashboard/dashboard-specifications.md.
+
+.dash-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin-bottom: 0.25rem;
+  }
+}
+
+.dash-subtitle {
+  color: var(--sf-text-muted);
+  font-size: 0.875rem;
+}
+
+.period-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--sf-surface);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius-lg);
+  box-shadow: var(--sf-shadow-1);
+
+  .form-label {
+    font-size: 0.75rem;
+    margin-bottom: 0.125rem;
+  }
+
+  .period-field .form-select {
+    min-width: 13rem;
+  }
+
+  .period-custom {
+    display: flex;
+    gap: 0.75rem;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .period-compare {
+    align-self: center;
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
+  .period-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .period-error {
+    flex-basis: 100%;
+    color: var(--sf-bad);
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .period-picker,
+  .period-picker .period-custom {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+}
+
+.badge-now {
+  display: inline-block;
+  margin-left: 0.375rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 50rem;
+  background: var(--sf-surface-sunken);
+  color: var(--sf-text-muted);
+  font-family: $font-family-sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+  gap: 1rem;
+}
+
+.dash-kpi {
+  gap: 0.375rem;
+  padding: 1rem 1.125rem;
+
+  .dash-kpi-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .dash-kpi-icon {
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--sf-radius);
+    background: var(--sf-accent-soft);
+    color: var(--sf-accent);
+  }
+
+  &.is-warning .dash-kpi-icon {
+    background: #f8ebc8;
+    color: #7a5200;
+  }
+
+  &.is-danger .dash-kpi-icon {
+    background: #f7e2de;
+    color: #a32a1f;
+  }
+
+  .kpi-value {
+    // Une valeur tient toujours sur une ligne : la taille suit la largeur de la carte.
+    white-space: nowrap;
+    font-size: clamp(1.25rem, 0.9rem + 0.9vw, 1.625rem);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  &[data-money] .kpi-value {
+    font-size: clamp(1.125rem, 0.85rem + 0.6vw, 1.375rem);
+  }
+}
+
+.dash-delta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+
+  .dash-delta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    padding: 0.05rem 0.45rem;
+    border-radius: 50rem;
+    font-weight: 700;
+  }
+
+  .dash-delta-ref {
+    color: var(--sf-text-muted);
+  }
+
+  &.is-good .dash-delta-badge {
+    background: #e1eee3;
+    color: #256b3c;
+  }
+
+  &.is-bad .dash-delta-badge {
+    background: #f7e2de;
+    color: #a32a1f;
+  }
+
+  &.is-neutral .dash-delta-badge {
+    background: var(--sf-surface-sunken);
+    color: var(--sf-text-muted);
+  }
+}
+
+.chart-card {
+  .chart-subtitle {
+    font-size: 0.8125rem;
+    color: var(--sf-text-muted);
+  }
+}
+
+.chart-box {
+  position: relative;
+  height: 260px;
+
+  &.is-tall {
+    height: 320px;
+  }
+
+  canvas {
+    max-width: 100%;
+  }
+}
+
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--sf-text-muted);
+  font-size: 0.875rem;
+  background: var(--sf-surface);
+
+  &[hidden] {
+    display: none;
+  }
+
+  .bi {
+    font-size: 1.5rem;
+  }
+}
+
+// Le repli texte reste lisible tant que le graphique n'est pas dessiné.
+// Une fois dessiné, il ne sert plus qu'aux lecteurs d'écran.
+[data-charts-ready] .chart-fallback {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+}
+
+[data-charts-ready] .chart-card .chart-box {
+  display: block;
+}
+
+.chart-card .chart-box {
+  display: none;
+}
+
+.top-list {
+  margin: 0;
+  padding-left: 1.25rem;
+
+  li {
+    margin-bottom: 0.375rem;
+  }
+
+  .tabular {
+    color: var(--sf-text-muted);
+    font-size: 0.8125rem;
+  }
+}
+
+.activity-list .list-group-item {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+}
+
+.table-card > .card-header,
+.card > .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  a {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+}
+
+// Téléphone : deux cartes par ligne, valeurs un peu plus petites.
+@media (max-width: 575.98px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.625rem;
+  }
+
+  .dash-kpi {
+    padding: 0.75rem;
+
+    .kpi-value,
+    &[data-money] .kpi-value {
+      font-size: 1.0625rem;
+      white-space: normal;
+    }
+
+    .dash-kpi-icon {
+      display: none;
+    }
+
+    .dash-delta-ref {
+      display: none;
+    }
+  }
+
+  .chart-box {
+    height: 220px;
+  }
+}

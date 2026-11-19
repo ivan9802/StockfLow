@@ -10,17 +10,30 @@
     @vite(['resources/scss/app.scss', 'resources/js/app.js'])
 </head>
 <body>
-    <main class="guest-shell">
-        <div class="guest-brand">
-            <div class="name">Stock<span>Flow</span></div>
-            <div class="company">{{ config('stockflow.company.name') }}</div>
-        </div>
+    @hasSection('aside')
+        {{-- Mise en page en deux colonnes (connexion) : présentation à gauche, formulaire à droite. --}}
+        <main class="guest-shell is-login">
+            <aside class="login-aside">@yield('aside')</aside>
+            <div class="login-main">
+                @yield('content')
+                <p class="mt-4 mb-0 small text-secondary">
+                    <a class="link-secondary" href="{{ route('legal') }}">Mentions légales et données personnelles</a>
+                </p>
+            </div>
+        </main>
+    @else
+        <main class="guest-shell">
+            <div class="guest-brand">
+                <div class="name">Stock<span>Flow</span></div>
+                <div class="company">{{ config('stockflow.company.name') }}</div>
+            </div>
 
-        @yield('content')
+            @yield('content')
 
-        <p class="mt-4 mb-0 small text-secondary">
-            <a class="link-secondary" href="{{ route('legal') }}">Mentions légales et données personnelles</a>
-        </p>
-    </main>
+            <p class="mt-4 mb-0 small text-secondary">
+                <a class="link-secondary" href="{{ route('legal') }}">Mentions légales et données personnelles</a>
+            </p>
+        </main>
+    @endif
 </body>
 </html>

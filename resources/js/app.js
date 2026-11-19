@@ -130,6 +130,7 @@ function initMisc() {
         form.addEventListener('submit', () => {
             form.querySelectorAll('button[type="submit"]').forEach((button) => {
                 button.disabled = true;
+                button.classList.add('is-loading');
             });
         });
     });

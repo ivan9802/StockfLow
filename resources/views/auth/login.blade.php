@@ -2,15 +2,29 @@
 
 @section('title', 'Connexion')
 
+@section('aside')
+    <div class="name">Stock<span>Flow</span></div>
+    <div>
+        <p class="pitch">Le stock de l'entrepôt et de la boutique, à jour à chaque vente, réception et transfert.</p>
+        <ul>
+            <li><i class="bi bi-check2-circle" aria-hidden="true"></i> Ventes refusées quand le stock manque</li>
+            <li><i class="bi bi-check2-circle" aria-hidden="true"></i> Historique de chaque mouvement, avec son auteur</li>
+            <li><i class="bi bi-check2-circle" aria-hidden="true"></i> Alertes avant la rupture</li>
+        </ul>
+    </div>
+    <div class="company">{{ config('stockflow.company.name') }}</div>
+@endsection
+
 @section('content')
     <div class="guest-card">
-        <h1 class="h2 mb-3">Connexion</h1>
+        <h1 class="h2 mb-1">Connexion</h1>
+        <p class="text-secondary mb-4">Identifiez-vous avec votre adresse professionnelle.</p>
 
         @if ($errors->any())
             <x-alert type="danger" :message="$errors->first()" data-autofocus />
         @endif
 
-        <form method="POST" action="{{ route('login.store') }}" novalidate>
+        <form method="POST" action="{{ route('login.store') }}" data-once novalidate>
             @csrf
 
             <div class="mb-3">
