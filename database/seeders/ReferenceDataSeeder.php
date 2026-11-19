@@ -39,7 +39,8 @@ class ReferenceDataSeeder extends Seeder
 
         // Le mot de passe initial vient de ADMIN_PASSWORD, sinon il est tiré au hasard
         // et affiché une seule fois. Dans les deux cas il doit être changé à la première connexion.
-        $password = env('ADMIN_PASSWORD') ?: Str::password(16, symbols: false);
+        $provided = (string) env('ADMIN_PASSWORD', '');
+        $password = $provided !== '' ? $provided : Str::password(16, symbols: false);
         $email = env('ADMIN_EMAIL', 'admin@stockflow.example');
 
         User::create([
@@ -51,6 +52,10 @@ class ReferenceDataSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        $this->command?->warn("Compte administrateur créé : $email / $password (à changer à la première connexion).");
+        // Un mot de passe fourni par l'environnement n'est pas réaffiché : la sortie
+        // de la commande finit souvent dans un journal de déploiement.
+        $this->command?->warn($provided !== ''
+            ? "Compte administrateur créé : $email, mot de passe tiré de ADMIN_PASSWORD (à changer à la première connexion)."
+            : "Compte administrateur créé : $email / $password (à changer à la première connexion).");
     }
 }

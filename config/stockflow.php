@@ -30,4 +30,13 @@ return [
         'max_kilobytes' => 2048,
         'mimes' => ['jpeg', 'png', 'webp'],
     ],
+
+    // Proxies de confiance (App\Http\Middleware\TrustProxies) : « * » derrière le proxy
+    // inverse TLS de production, une liste d'adresses séparées par des virgules, ou vide
+    // en développement (aucun en-tête X-Forwarded-* n'est alors pris en compte).
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
+    // Port du serveur de développement de Vite, autorisé par la politique de contenu
+    // (App\Http\Middleware\SecurityHeaders) en environnement local seulement.
+    'vite_port' => (int) env('VITE_PORT', 5173),
 ];

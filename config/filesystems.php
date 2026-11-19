@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Pas de route storage/{path} : les images de produits sont servies par
+            // ProductController::image, réservé aux utilisateurs connectés.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

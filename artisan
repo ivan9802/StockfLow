@@ -9,10 +9,10 @@ define('LARAVEL_START', microtime(true));
 // StockFlow tourne dans Docker : PHP 8.4 et les dépendances sont dans le conteneur
 // « app ». Lancé avec le PHP du poste (XAMPP par exemple), artisan s'arrête ici avec
 // une consigne claire au lieu d'une erreur sur vendor/autoload.php.
-if (! file_exists(__DIR__.'/vendor/autoload.php') || PHP_VERSION_ID < 80300) {
+if (! file_exists(__DIR__.'/vendor/autoload.php') || PHP_VERSION_ID < 80400) {
     fwrite(STDERR, implode(PHP_EOL, [
         '',
-        'StockFlow s\'exécute dans Docker, pas avec le PHP de ce poste (PHP '.PHP_VERSION.' ici, 8.3 au minimum requis).',
+        'StockFlow s\'exécute dans Docker, pas avec le PHP de ce poste (PHP '.PHP_VERSION.' ici, 8.4 au minimum requis).',
         '',
         'Depuis le dossier du projet, utilisez :',
         '    artisan.cmd <commande>                       (Windows, par exemple : artisan.cmd migrate:status)',

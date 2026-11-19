@@ -4,9 +4,9 @@
     "type": "project",
     "description": "StockFlow : gestion de stock multi-emplacements pour PME.",
     "keywords": ["stock", "inventaire", "laravel"],
-    "license": "MIT",
+    "license": "proprietary",
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
         "barryvdh/laravel-dompdf": "^3.1",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
@@ -76,6 +76,9 @@
     },
     "config": {
         "optimize-autoloader": true,
+        "platform": {
+            "php": "8.4.1"
+        },
         "preferred-install": "dist",
         "sort-packages": true,
         "allow-plugins": {

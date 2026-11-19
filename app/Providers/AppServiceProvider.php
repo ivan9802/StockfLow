@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\AliasLoader;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Vite;
@@ -54,6 +55,13 @@ class AppServiceProvider extends ServiceProvider
         // Hors production, une affectation de masse sur un champ non autorisé
         // lève une erreur au lieu d'être ignorée en silence.
         Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());
+
+        // En production, migrate:fresh, migrate:refresh, migrate:reset, migrate:rollback
+        // et db:wipe refusent de s'exécuter, même avec --force : ils videraient la base
+        // avant que DemoSeeder ne refuse de tourner. Une restauration passe par
+        // scripts/restore.sh. Appelé avec false hors production, l'appel remet aussi
+        // l'interdiction à zéro (état statique partagé par les tests d'un même processus).
+        DB::prohibitDestructiveCommands($this->app->isProduction());
 
         // Règle unique de mot de passe (D-010) : la longueur, pas la composition.
         Password::defaults(fn () => Password::min(12));

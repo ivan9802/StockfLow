@@ -27,12 +27,13 @@ class SecurityHeaders
 
         // Serveur de développement de Vite (npm run dev) : scripts et rechargement à chaud.
         if (app()->environment('local') && Vite::isRunningHot()) {
-            $dev = 'http://localhost:'.env('VITE_PORT', 5173);
+            $port = config('stockflow.vite_port');
+            $dev = 'http://localhost:'.$port;
             $script[] = $dev;
             $style[] = $dev;
             $style[] = "'unsafe-inline'";
             $connect[] = $dev;
-            $connect[] = 'ws://localhost:'.env('VITE_PORT', 5173);
+            $connect[] = 'ws://localhost:'.$port;
         }
 
         $policy = implode('; ', [

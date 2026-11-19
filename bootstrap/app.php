@@ -4,9 +4,11 @@ use App\Exceptions\BusinessException;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\TrustProxies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\TrustProxies as BaseTrustProxies;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -16,20 +18,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [SecurityHeaders::class]);
+        // En-têtes de sécurité sur toutes les réponses (SEC-21) : pages, erreurs rendues
+        // hors du groupe web (404, 503 de maintenance), /up et réponses JSON. Placé en tête
+        // de la pile globale, il enveloppe tous les autres middlewares.
+        $middleware->prepend(SecurityHeaders::class);
 
-        // Derrière le proxy inverse TLS de production, l'adresse du client et le schéma
-        // HTTPS arrivent dans les en-têtes X-Forwarded-*. Sans cela, la limitation des
-        // connexions compterait toute l'entreprise comme une seule adresse et HSTS ne
-        // serait jamais envoyé. TRUSTED_PROXIES vaut « * » en production (le service web
-        // n'écoute que sur 127.0.0.1) et reste vide en développement.
-        if ($proxies = env('TRUSTED_PROXIES')) {
-            $middleware->trustProxies(
-                at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)),
-                headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST
-                    | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
-            );
-        }
+        // Proxies de confiance lus dans config('stockflow.trusted_proxies') à chaque
+        // requête. Cette fonction s'exécute avant le chargement du fichier .env :
+        // un env() ici ne verrait que les variables du processus.
+        $middleware->replace(BaseTrustProxies::class, TrustProxies::class);
 
         $middleware->alias([
             'active' => EnsureUserIsActive::class,
