@@ -1,0 +1,138 @@
+# Intégration continue de StockFlow.
+#
+# Job "tests" : contrôles de style, compilation des CSS et JavaScript, migrations et
+# tests sur un vrai MySQL 8.4 (jamais SQLite : les tests de concurrence en dépendent).
+# Job "audit" : vulnérabilités connues des dépendances Composer et npm.
+#
+# Base de données : phpunit.xml fixe DB_HOST=db-test (service de compose.yaml). Les
+# balises <env> de PHPUnit n'écrasent pas une variable déjà présente dans
+# l'environnement (attribut force absent), et « php artisan test » ne retire pas les
+# variables définies hors de .env. Les variables DB_* du job ci-dessous pointent donc
+# les tests vers le service MySQL du runner sans modifier phpunit.xml.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Style, build et tests (PHP 8.4, MySQL 8.4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: stockflow_test
+          MYSQL_USER: stockflow
+          MYSQL_PASSWORD: secret
+          MYSQL_ROOT_PASSWORD: root-secret
+          TZ: Africa/Abidjan
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-secret --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: stockflow_test
+      DB_USERNAME: stockflow
+      DB_PASSWORD: secret
+      APP_TIMEZONE: Africa/Abidjan
+
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: PHP 8.4 et extensions
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_mysql, gd, intl, zip, bcmath, mbstring, dom, pcntl
+          ini-values: date.timezone=Africa/Abidjan, memory_limit=512M
+          coverage: none
+          tools: composer:v2
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: composer validate
+        run: composer validate --no-check-publish
+
+      - name: Dépendances PHP
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Fichier .env et clé de l'application
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: Style du code (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Dépendances JavaScript et compilation
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Migrations sur MySQL 8.4
+        run: php artisan migrate --force
+
+      - name: Tests unitaires et fonctionnels
+        run: php artisan test --testsuite=Unit,Feature
+
+      - name: Tests de concurrence (processus réels)
+        run: php artisan test --testsuite=Concurrency
+
+  audit:
+    name: Audit des dépendances
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: gd, intl, zip, bcmath, mbstring, dom
+          coverage: none
+          tools: composer:v2
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: composer audit
+        run: composer audit --locked --no-interaction
+
+      - name: npm audit (dépendances livrées)
+        run: npm audit --omit=dev
