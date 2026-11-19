@@ -8,9 +8,9 @@ Le pilotage est assuré par l'agent principal (CTO et architecte logiciel). Il d
 | :-- | :-- | :-- | :-- |
 | 1 | Product owner, analyste métier | `docs/01-analysis/` | `requirements.md` (exigences, user stories, critères d'acceptation, backlog) |
 | 2 | Architecte logiciel | `docs/02-architecture/`, `DECISIONS.md` | `system-architecture.md`, `database-design.md`, `architecture-decisions.md` |
-| 3 | Designer UI/UX | `docs/03-design/`, `resources/css/` | `ui-guidelines.md`, `wireframes.md` |
+| 3 | Designer UI/UX | `docs/03-design/`, `resources/scss/` | `ui-guidelines.md`, `wireframes.md` |
 | 4 | Développeur backend Laravel | `app/`, `routes/`, `config/`, `database/migrations/` | modèles, services, contrôleurs, Form Requests, policies, audit |
-| 5 | Développeur frontend | `resources/views/`, `resources/js/`, `resources/css/` | vues Blade, composants, interactions Fetch |
+| 5 | Développeur frontend | `resources/views/`, `resources/js/`, `resources/scss/` | vues Blade, composants, interactions Fetch |
 | 6 | Ingénieur base de données | `database/`, `docs/04-database/` | schéma, index, contraintes, seeders de démonstration |
 | 7 | QA, testeur | `tests/`, `docs/06-testing/` | tests unitaires, fonctionnels, de permissions et de concurrence |
 | 8 | Ingénieur sécurité | lecture sur tout le dépôt, `docs/06-testing/security-audit.md` | audit, liste de non-conformités, vérification des correctifs |

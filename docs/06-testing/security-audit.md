@@ -260,3 +260,165 @@ Corrections faites par l'agent principal après l'audit, vérifiées par les tes
 | CSP et `style` | Corrigé | Les attributs `style` des vues et du JavaScript, bloqués par la CSP, sont remplacés par des classes CSS |
 
 Audit des dépendances du 14/11/2026 : `composer audit` et `npm audit` ne signalent aucune vulnérabilité connue. Reste à faire : vérifier les en-têtes sur les réponses d'erreur, et ajouter ces deux audits à la chaîne de livraison.
+
+## Audit de préparation au déploiement (19/11/2026)
+
+Tâche T-905 de la Mission 1. Audit préventif en lecture seule de la branche `phase-3/initialisation` (dernier commit `72ae83d`, plus les modifications non commitées du tableau de bord). Aucun fichier n'a été modifié hors de ce rapport, aucun test, aucune migration ni aucune commande d'écriture n'a été lancé. Les valeurs des fichiers `.env` et `.env.production` du poste n'ont été comparées qu'à l'historique Git, sans être recopiées.
+
+### Synthèse
+
+La préparation au déploiement est saine sur l'essentiel. Aucun secret n'a jamais été versionné : ni `.env`, ni `.env.production`, ni sauvegarde, ni clé n'apparaissent dans l'historique des trois branches, et les valeurs réelles des fichiers d'environnement du poste (clé d'application, mots de passe MySQL de production, mot de passe initial de l'administrateur) sont absentes de `git log -p`. L'image de production est construite sans dépendance de développement, tourne sous `www-data`, ne contient pas de `.env`, et le script de déploiement refuse un `APP_DEBUG` actif ou un `APP_ENV` autre que `production`. Toutes les routes d'écriture de l'application passent par le groupe `web` (CSRF), par une autorisation `can:` et par une validation. Le nouveau tableau de bord est correct du point de vue de la sécurité : période validée par liste blanche et format de date strict, expressions SQL construites à partir de noms de colonnes constants, insertion HTML échappée, données JSON encodées par `@json` avec les options d'échappement de Blade, valeur du stock et prix d'achat réservés aux gestionnaires et à l'administrateur. `composer audit` et `npm audit` ne signalent aucune vulnérabilité.
+
+Aucune non-conformité critique ni majeure n'est relevée. Les neuf non-conformités mineures (SEC-15 à SEC-23) touchent surtout le durcissement de l'exploitation : le script de déploiement ne vérifie ni l'attribut `Secure` du cookie de session (le seul `.env.production` éprouvé le met à `false`) ni l'abandon des mots de passe d'exemple ; le mot de passe root de MySQL et le mot de passe initial de l'administrateur sont injectés dans l'environnement du conteneur PHP ; le code de l'image appartient à l'utilisateur qui l'exécute ; les journaux Docker ne tournent pas ; les réponses 404 et `/up` partent sans en-têtes de sécurité. Côté suivi, SEC-07 et SEC-08 restent acceptées sans être consignées dans `DECISIONS.md`, et SEC-14 reste ouverte. Priorités avant une mise en service réelle : SEC-15 et SEC-17, puis SEC-18 et SEC-20, toutes d'effort petit.
+
+### Points de contrôle
+
+| N° | Point de contrôle | Statut | Preuve |
+| :-- | :-- | :-- | :-- |
+| 1 | Secrets dans le dépôt et l'historique | Conforme | Fichiers suivis sensibles : aucun hors `.env.example` (`git ls-files`). Fichiers ajoutés un jour dans l'historique (`git log --all --diff-filter=A`) : aucun `.env*` hors `.env.example`, aucun `.sql` hors `docs/04-database/schema.sql` (schéma sans données), aucun `.gz`, `.key`, `.pem`, `auth.json`. Recherche de motifs (`APP_KEY=base64:`, clés privées, jetons) dans `git log --all -p` : seulement des valeurs d'exemple (`.env.example:31,33`, `docs/07-deployment/deployment.md:109`), le mot de passe public de démonstration (`database/seeders/DemoSeeder.php:37`) et celui des tests. Les valeurs réelles de `APP_KEY`, `DB_PASSWORD`, `DB_ROOT_PASSWORD` et `ADMIN_PASSWORD` de `.env.production` et la clé de `.env` : zéro occurrence dans l'historique. Clés de développement et de production distinctes. Démonstration impossible en production : `DemoSeeder.php:55-56` refuse `isProduction()`, et `scripts/deploy.sh:15` impose `APP_ENV=production`. |
+| 2 | Fichiers `.env` | Partiel | Ignorés par Git (`.gitignore:3-5`, `git check-ignore` confirmé) et par Docker (`.dockerignore:2-4,21`), supprimés de l'image (`docker/php/Dockerfile:62`), fournis au démarrage (`compose.prod.yaml:16`). `.env.example` ne contient que des valeurs de développement (`APP_KEY` vide ligne 6, `ADMIN_PASSWORD` vide ligne 67). Écarts : SEC-15 (valeurs d'exemple acceptées en production), SEC-17 (tout le fichier injecté dans le conteneur PHP). |
+| 3 | Configuration de production | Partiel | `APP_DEBUG=false` et `APP_ENV=production` exigés (`scripts/deploy.sh:15-16`), débogage désactivé par défaut (`config/app.php:42`). Journaux : pile `daily`, 14 fichiers (`config/logging.php:68-72`), `LOG_LEVEL=warning` recommandé (`docs/07-deployment/deployment.md:79`) et présent dans `.env.production`, volume dédié (`compose.prod.yaml:20`). Aucune écriture de mot de passe, de jeton ni de corps de requête dans les journaux : un seul `Log::` (`app/Listeners/CheckStockThresholds.php:24`, identifiant de mouvement), champs secrets masqués (`app/Models/User.php:23`). `display_errors = Off` (`docker/php/opcache-prod.ini:6`), `expose_php = Off` (`docker/php/php.ini:3`), `server_tokens off` (`docker/nginx/default.conf:9`). Pages d'erreur dédiées (`resources/views/errors/`). `/up` (`bootstrap/app.php:16`) répond 200 sans information interne. Écarts : SEC-20 (journaux Docker), SEC-21 (en-têtes absents sur 404 et `/up`). |
+| 4 | Permissions, utilisateur, ports | Partiel | Production : `USER www-data` (`Dockerfile:66`), `storage` et `bootstrap/cache` créés et attribués à `www-data` (`Dockerfile:62-64`). Root seulement en développement (`docker/php/fpm-dev.conf:5-6`, étape `dev` du `Dockerfile`), constaté par `id` dans le conteneur de développement (`uid=0`). Ports : `web` sur `127.0.0.1` seulement (`compose.prod.yaml:34`), MySQL sans port publié (`compose.prod.yaml:50`), développement sur `127.0.0.1` (`compose.yaml:18,28,52`). Écart : SEC-18 (code applicatif modifiable par `www-data`, outils superflus dans l'image). |
+| 5 | Sessions et cookies | Partiel | `HttpOnly` (`config/session.php:185`), `SameSite=lax` (`session.php:202`), sérialisation JSON (`session.php:231`), régénération à la connexion (`app/Http/Controllers/Auth/LoginController.php:67`), invalidation et nouveau jeton à la déconnexion (`LoginController.php:84-85`), `remember_token` renouvelé et session régénérée au changement de mot de passe (`app/Http/Controllers/Auth/PasswordController.php:42,52`). Cookie observé sur `/login` : `httponly; samesite=lax; Max-Age=7200`. Chiffrement : `true` dans `.env.example:43` et `.env.production`, mais défaut `false` dans `session.php:50`. Écarts : SEC-15 (`Secure` non garanti), SEC-16 (session qui survit à la fermeture du navigateur sur poste partagé). |
+| 6 | CSRF | Conforme | Aucune exclusion (`validateCsrfTokens`, `$except` absents de `app/`, `bootstrap/`, `routes/`, `config/`). Les 35 routes POST, PUT, PATCH et DELETE de l'application portent le groupe `web` (sortie de `route:list --json`). 25 `@csrf`, aucun formulaire POST sans jeton. Jeton `X-CSRF-TOKEN` sur chaque appel Fetch (`resources/js/lib/http.js:22`). Seule route d'écriture hors `web` : `PUT storage/{path}` du framework, protégée par signature et inaccessible derrière nginx (SEC-22). |
+| 7 | Validation des entrées | Conforme | Chaque route d'écriture qui reçoit des données passe par un Form Request (`app/Http/Requests/`) ou par `$request->validate()` (`PasswordController.php:25`, `GoodsReceiptController.php:78`, `InventoryController.php:51,112`, `UserController.php:101-125`, `WarehouseController.php:33`). Routes sans validation parce qu'elles ne lisent aucune donnée hors de l'identifiant de route : `POST /logout`, `POST /alerts/read`, `DELETE` des catégories, fournisseurs et produits, `POST /purchase-orders/{id}/confirm`, `POST /inventories/{id}/submit`, `POST /inventories/{id}/validate`, `POST /users/{id}/reset-password`. Toutes portent un `can:` sauf `/logout`. |
+| 8 | Données sensibles exposées | Conforme | `/internal/products/search` : prix de vente seulement, jamais le prix d'achat (`app/Http/Controllers/Internal/ProductSearchController.php:13,34,36-46`). `/internal/dashboard` : `can:stock.view` et `throttle:120,1` (`routes/modules.php:147,149`) ; valeur du stock et commandes en attente réservées à `dashboard.full` (`app/Services/DashboardService.php:105-110`), séries des mouvements et répartition valorisée par emplacement retirées pour le vendeur (`DashboardService.php:74-75`), ventes, palmarès et dernières ventes limités aux siennes (`DashboardService.php:265,289,305`). Page : mêmes contrôles (`resources/views/dashboard/index.blade.php:68-80,127`, `app/Http/Controllers/DashboardController.php:24-25`). Prix d'achat ailleurs derrière `@can('prices.view-purchase')` (`resources/views/products/_table.blade.php:32`, `products/show.blade.php:42`). Comptes : `password` et `remember_token` cachés (`User.php:23`), gestion réservée à `users.manage`. |
+| 9 | Scripts | Partiel | `scripts/backup.sh` : `umask 077` (ligne 10), mot de passe par `MYSQL_PWD` (ligne 21), contrôle d'intégrité (lignes 27-31). `scripts/restore.sh` : confirmation tapée (lignes 16-17), `MYSQL_PWD` (lignes 23-24), chemins entre guillemets. `scripts/deploy.sh` : arrêt à la première erreur (ligne 9), contrôles de l'environnement (lignes 14-17). `artisan.cmd` : aucun secret, transmet les arguments de l'utilisateur à sa propre commande Docker, sans élévation de droits. Pas de script `.ps1`. Les sauvegardes locales (`backups/`) sont ignorées par Git (`.gitignore:30`) et par Docker (`.dockerignore:20`). Écarts : SEC-15 (contrôles incomplets de `deploy.sh`), SEC-19 (mot de passe root sur la ligne de commande du contrôle de santé). `restore.sh:23` redonne `ALL PRIVILEGES` au compte applicatif, ce qui prolonge SEC-08. |
+| 10 | Dépendances | Conforme | `composer.lock` et `package-lock.json` suivis par Git. Image : `composer install --no-dev` et `dump-autoload --no-dev` (`Dockerfile:41,43`), `npm ci` sur le fichier verrouillé (`Dockerfile:48`) dans une étape séparée dont seul `public/build` est copié (`Dockerfile:59,75`), ni Composer ni Node dans l'image finale. `composer validate` : valide. `composer audit --locked` : aucune alerte. `npm audit` (avec et sans dépendances de développement) : 0 vulnérabilité. Chart.js 4.6.1 ajouté par D-021 ; `package.json` et `package-lock.json` sont modifiés et non commités : ils doivent partir dans le même commit, sinon `npm ci` échoue à la construction. Outils système superflus en production : voir SEC-18. |
+| 11 | Code du tableau de bord | Conforme | Période validée côté serveur : liste blanche (`app/Http/Requests/DashboardPeriodRequest.php:23`), `date_format:Y-m-d` et ordre des dates (lignes 24-25), booléen (ligne 26), autorisation `stock.view` (ligne 17) ; contrôle de date réelle et plafond de 731 jours (`app/Support/Period.php:69-80`). `bucketExpression()` (`Period.php:171-179`) n'est appelée qu'avec les constantes `'sold_at'` et `'created_at'` (`DashboardService.php:189,204`) ; aucune saisie n'atteint `selectRaw` ou `groupByRaw`, les bornes passent par `whereBetween` lié. JavaScript : les deux `innerHTML` échappent les valeurs venues du serveur (`resources/js/modules/dashboard.js:33-34,305-306`), le reste en `textContent` (lignes 44, 287, 291, 311, 330), libellés des graphiques dessinés sur `canvas`. JSON dans la page : `<script type="application/json">` avec `@json` (`resources/views/dashboard/index.blade.php:60`), compilé avec `JSON_HEX_TAG \| JSON_HEX_APOS \| JSON_HEX_AMP \| JSON_HEX_QUOT` (vérifié dans `CompilesJson.php` du framework installé) : un nom de produit contenant `</script>` ne peut pas fermer la balise. Remarque : `GET /dashboard` (`routes/web.php:38`) n'a pas de `can:` dans la route, l'autorisation est faite par `DashboardPeriodRequest::authorize()` ; ce n'est pas une faille, mais un écart à la convention de `routes/web.php:11-13`. |
+| 12 | Suivi de SEC-07, SEC-08, SEC-14 | Non conforme | SEC-07 : toujours pas de réencodage (`app/Services/ProductService.php:149`), statut « Accepté ». SEC-08 : aucune migration ne crée de déclencheur, statut « Accepté ». Ni l'une ni l'autre n'est consignée dans `DECISIONS.md` (aucune occurrence de `SEC-`), contrairement à la règle de clôture de T-605 : SEC-23. SEC-14 : toujours ouverte, durées de conservation non chiffrées (`resources/views/legal.blade.php:38-39`), identité « à renseigner » par défaut (`config/stockflow.php:14-16`), aucune commande de purge ; `.env.production` du poste ne définit que `COMPANY_NAME`. |
+
+### Non-conformités nouvelles
+
+#### Critique
+
+Aucune.
+
+#### Majeure
+
+Aucune.
+
+#### Mineure
+
+##### SEC-15 : contrôles du script de déploiement incomplets (cookie `Secure`, mots de passe d'exemple)
+
+Description. `scripts/deploy.sh:14-17` vérifie `APP_ENV`, `APP_DEBUG` et `APP_KEY`, mais pas `SESSION_SECURE_COOKIE`, que `docs/07-deployment/deployment.md:82` exige à `true` et dont `config/session.php:172` ne donne aucune valeur par défaut. Le seul `.env.production` éprouvé (celui du déploiement local du 14/11) contient `SESSION_SECURE_COOKIE=false`. Le script n'empêche pas non plus d'installer avec les mots de passe publiés de `.env.example:31,33`, et `config/session.php:50` garde `false` comme défaut de `SESSION_ENCRYPT`. Le suivi de SEC-06 la déclare corrigée par la documentation seule.
+
+Scénario. L'installateur reprend le `.env.production` de la répétition locale, ou copie `.env.example` et ne change que les trois valeurs contrôlées. Le service démarre derrière HTTPS avec un cookie de session sans `Secure` et une base dont les mots de passe figurent dans le dépôt. Tant que HSTS n'est pas mémorisé par le navigateur (premier accès, autre poste), un lien ou une redirection en `http://` fait partir le cookie de session en clair sur le réseau de la boutique.
+
+Correction proposée. Dans `deploy.sh`, après la ligne 17 : `grep -q '^SESSION_SECURE_COOKIE=true' .env.production`, `grep -q '^SESSION_ENCRYPT=true' .env.production`, et refus si `DB_PASSWORD` vaut `secret` ou `DB_ROOT_PASSWORD` vaut `root-secret`. Refuser aussi une clé présente deux fois (exactement une ligne `^APP_DEBUG=`). Dans `config/session.php`, défauts sûrs : `'encrypt' => env('SESSION_ENCRYPT', true)` et `'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production')`. Passer le statut de SEC-06 à « Partiel » jusque-là.
+
+Agent : DevOps (script), Backend (`config/session.php`). Effort : petit.
+
+##### SEC-16 : session conservée deux heures après fermeture du navigateur sur des postes partagés
+
+Description. `SESSION_LIFETIME=120` et `expire_on_close` à `false` (`config/session.php:35,37`, `.env.example:42`) : le cookie de session est persistant (`Max-Age=7200` observé sur `/login`). L'architecture rappelle que les postes de la boutique sont partagés (raison de la suppression de « Rester connecté », SEC-02).
+
+Scénario. Une vendeuse ferme le navigateur du poste de caisse sans se déconnecter. Dans les deux heures, le collègue suivant le rouvre et se retrouve connecté sous son nom ; ses ventes sont imputées à la vendeuse dans `stock_movements` et `audit_logs`.
+
+Correction proposée. `SESSION_EXPIRE_ON_CLOSE=true` dans `.env.example` et dans la liste de `deployment.md` ; envisager une durée d'inactivité plus courte (30 à 60 minutes) en production, à faire valider par l'utilisateur. Rappeler dans le guide utilisateur que la déconnexion reste la règle.
+
+Agent : Backend (`.env.example`, `config/session.php`), Rédacteur (guides). Effort : petit.
+
+##### SEC-17 : mot de passe root MySQL et mot de passe initial de l'administrateur dans l'environnement du conteneur PHP
+
+Description. `compose.prod.yaml:16` charge tout `.env.production` dans le conteneur `app` (`env_file`), y compris `DB_ROOT_PASSWORD`, qui ne sert qu'au conteneur `db`, et `ADMIN_PASSWORD`, qui ne sert qu'au premier `db:seed`. L'image PHP officielle règle `clear_env = no` (`/usr/local/etc/php-fpm.d/docker.conf:12`, constaté dans le conteneur) : ces valeurs sont donc lisibles par PHP (`getenv()`, `$_SERVER`). Le `.env.production` du poste contient encore `ADMIN_PASSWORD` [masqué], alors que `deployment.md:112` demande de le retirer après la première connexion.
+
+Scénario. Une faille future de lecture de fichier ou d'exécution dans PHP, ou une page de débogage activée par erreur, livre le mot de passe root de MySQL, qui donne plus que le compte applicatif (création de comptes, toutes les bases). Une copie de `.env.production` faite pour la sauvegarde (`backup-restore.md:83`) garde indéfiniment le mot de passe initial de l'administrateur.
+
+Correction proposée. Séparer les variables : un fichier `.env.db` (ou des secrets Docker) pour `MYSQL_ROOT_PASSWORD`, lu par le seul service `db` ; ne laisser à `app` que `DB_USERNAME` et `DB_PASSWORD`. Faire échouer `deploy.sh` (ou afficher un avertissement) si `ADMIN_PASSWORD` est encore renseigné alors qu'un administrateur existe.
+
+Agent : DevOps. Effort : petit.
+
+##### SEC-18 : code de l'image de production modifiable par l'utilisateur qui l'exécute, outils superflus
+
+Description. `docker/php/Dockerfile:57-59` copie tout le code, `vendor` et `public/build` avec `--chown=www-data:www-data`, puis l'image tourne sous `www-data` (ligne 66). PHP-FPM peut donc réécrire `app/`, `config/`, `routes/`, `vendor/` et `public/index.php`, alors que seuls `storage/` et `bootstrap/cache/` ont besoin d'être inscriptibles (lignes 62-64). L'étape `prod` hérite de `base`, qui installe `git`, `unzip` et `default-mysql-client` (ligne 13, présents dans le conteneur), inutiles à l'exécution (les sauvegardes passent par le conteneur `db`).
+
+Scénario. Une faille d'écriture de fichier (téléversement mal contrôlé, dépendance vulnérable) permet de déposer une porte dérobée dans un fichier PHP du code, qui survit jusqu'à la reconstruction de l'image et s'exécute au prochain redémarrage de PHP-FPM. Les outils présents facilitent ensuite l'exploration et l'exfiltration.
+
+Correction proposée. Copier le code sans `--chown` (propriétaire `root`, lecture seule pour `www-data`) et ne donner à `www-data` que `storage` et `bootstrap/cache`, comme le fait déjà la ligne 64. Installer `git` et `unzip` uniquement dans l'étape `dev` ; retirer `default-mysql-client` de l'étape `prod` s'il n'est pas utilisé.
+
+Agent : DevOps. Effort : petit.
+
+##### SEC-19 : mot de passe root MySQL sur la ligne de commande du contrôle de santé
+
+Description. Les contrôles de santé lancent `mysqladmin ping ... -p$$MYSQL_ROOT_PASSWORD` (`compose.prod.yaml:54`, `compose.yaml:56,83`). Le mot de passe apparaît dans les arguments du processus, visibles par `ps` sur l'hôte, toutes les dix secondes en production. SEC-13 a corrigé ce point dans les scripts de sauvegarde, pas ici.
+
+Scénario. Un autre compte de l'hôte, ou un outil de supervision qui collecte la liste des processus, enregistre le mot de passe root de MySQL.
+
+Correction proposée. `mysqladmin ping -h 127.0.0.1 --silent` sans identifiants suffit (la commande répond que le serveur est vivant même quand l'authentification est refusée), ou `MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysqladmin ping ...`.
+
+Agent : DevOps. Effort : petit.
+
+##### SEC-20 : journaux des conteneurs sans rotation
+
+Description. `compose.prod.yaml` ne déclare aucune section `logging` pour `app`, `web` et `db` (lignes 8-57), et aucun document de `docs/07-deployment/` ne mentionne `max-size`. Le pilote `json-file` par défaut de Docker conserve alors les journaux sans limite, sauf réglage du démon. Les journaux de Laravel tournent bien (`config/logging.php:68-72`), mais pas les journaux d'accès de nginx ni ceux de MySQL.
+
+Scénario. Après quelques mois, ou sous une rafale de requêtes (balayage automatisé de la page de connexion), le disque se remplit ; MySQL s'arrête faute de place et la boutique ne peut plus vendre.
+
+Correction proposée. Ajouter à chaque service : `logging: { driver: json-file, options: { max-size: "10m", max-file: "5" } }` (ou un bloc commun par ancre YAML), et le documenter dans `deployment.md`.
+
+Agent : DevOps. Effort : petit.
+
+##### SEC-21 : en-têtes de sécurité absents des erreurs hors route et de `/up`
+
+Description. Les en-têtes CSP, `X-Frame-Options` et `X-Content-Type-Options` sont posés par `SecurityHeaders`, attaché au seul groupe `web` (`bootstrap/app.php:19`). Une adresse inconnue (404 rendue avant tout groupe de middlewares) et `/up` repartent sans eux, constaté avec `curl -D -` sur `/route-inexistante` et `/up`. Nginx n'ajoute d'en-tête que pour `/storage/` (`docker/nginx/default.conf:21`). Le suivi du 14/11 laissait ce contrôle « à faire ».
+
+Scénario. Faible : les pages d'erreur ne reflètent pas de saisie. Une page 404 de l'application peut toutefois être encadrée par un site tiers (absence de `frame-ancestors`), et HSTS ne sera jamais envoyé sur ces réponses.
+
+Correction proposée. Ajouter dans `docker/nginx/default.conf`, au niveau `server`, `add_header X-Content-Type-Options nosniff always;`, `add_header X-Frame-Options DENY always;` et `add_header Referrer-Policy strict-origin-when-cross-origin always;` (la CSP avec nonce reste à Laravel), en reprenant ces lignes dans le bloc `/storage/`, car `add_header` ne s'hérite pas dans un bloc qui en déclare. Ou bien ajouter `SecurityHeaders` en middleware global (`$middleware->append(...)`).
+
+Agent : DevOps (nginx) ou Backend (middleware global). Effort : petit.
+
+##### SEC-22 : routes de service de fichiers du framework enregistrées sans usage
+
+Description. Le disque `local` porte `'serve' => true` (`config/filesystems.php:36`). Laravel enregistre alors `GET storage/{path}` et `PUT storage/{path}` hors du groupe `web`, sans authentification ni CSRF (sortie de `route:list`). Elles exigent une URL signée par `APP_KEY` (`ServeFile` et `ReceiveFile` du framework) et l'application n'en produit aucune (`temporaryUrl` absent du code). Aujourd'hui nginx répond 404 avant PHP (`default.conf:19-22`, constaté par `curl`). Les images passent par la route authentifiée `products.image`.
+
+Scénario. Aucun dans l'état actuel. Si la règle nginx `/storage/` change, ou si `APP_KEY` fuit, ces routes permettent de lire et d'écrire des fichiers du disque privé en contournant l'authentification de `products.image`.
+
+Correction proposée. `'serve' => false` sur le disque `local` (vérifier ensuite que `route:list` ne montre plus `storage.local`).
+
+Agent : Backend. Effort : petit.
+
+##### SEC-23 : acceptation de SEC-07 et SEC-08 non consignée
+
+Description. Le suivi du 14/11 marque SEC-07 (pas de réencodage des images) et SEC-08 (historique protégé au seul niveau Eloquent) comme « Accepté ». La règle de clôture de T-605, rappelée plus haut dans ce document, veut qu'une non-conformité non corrigée soit acceptée explicitement par l'utilisateur et consignée dans `DECISIONS.md`. `DECISIONS.md` ne contient aucune entrée correspondante (aucune occurrence de `SEC-`).
+
+Scénario. Lors de la soutenance ou d'un contrôle, rien ne prouve que le risque résiduel sur l'historique en ajout seul, règle métier n° 5 de `CLAUDE.md`, a été accepté par le responsable du projet et non oublié.
+
+Correction proposée. Soumettre les deux acceptations à l'utilisateur, puis ajouter deux entrées dans `DECISIONS.md` (justification et condition de réexamen, par exemple « déclencheurs MySQL en version 1.1 »). Faire de même pour SEC-14 si elle reste ouverte au déploiement.
+
+Agent : Rédacteur (après accord de l'utilisateur). Effort : petit.
+
+### Récapitulatif
+
+| Réf. | Gravité | Agent | Fichiers principaux |
+| :-- | :-- | :-- | :-- |
+| SEC-15 | Mineure | DevOps, Backend | `scripts/deploy.sh`, `config/session.php` |
+| SEC-16 | Mineure | Backend, Rédacteur | `config/session.php`, `.env.example`, `docs/07-deployment/deployment.md` |
+| SEC-17 | Mineure | DevOps | `compose.prod.yaml`, `scripts/deploy.sh` |
+| SEC-18 | Mineure | DevOps | `docker/php/Dockerfile` |
+| SEC-19 | Mineure | DevOps | `compose.prod.yaml`, `compose.yaml` |
+| SEC-20 | Mineure | DevOps | `compose.prod.yaml`, `docs/07-deployment/deployment.md` |
+| SEC-21 | Mineure | DevOps ou Backend | `docker/nginx/default.conf` ou `bootstrap/app.php` |
+| SEC-22 | Mineure | Backend | `config/filesystems.php` |
+| SEC-23 | Mineure | Rédacteur | `DECISIONS.md` |
+
+Non-conformités précédentes toujours ouvertes : SEC-14 (ouverte), SEC-07 et SEC-08 (acceptées, non consignées, voir SEC-23).
+
+### Commandes exécutées
+
+Toutes en lecture ; aucune ne modifie un fichier, une base ou un conteneur.
+
+- `git ls-files`, `git check-ignore -v .env .env.production backups/x`, `git branch -a`, `git stash list`, `git log --all --oneline`, `git diff` (fichiers du tableau de bord, `package.json`, `DECISIONS.md`)
+- `git log --all --diff-filter=A --name-only` filtré sur `.env`, `.sql`, `.gz`, `.key`, `.pem`, sauvegardes, `auth.json`
+- `git log --all -p` filtré sur les motifs de secrets (sortie masquée), puis comptage des occurrences des valeurs réelles de `.env` et `.env.production` dans `git log --all -p` (seuls la longueur et le nombre d'occurrences ont été affichés)
+- `git log --oneline -- composer.lock package-lock.json`, `git ls-files --stage scripts/`
+- Lecture des noms de variables de `.env` et `.env.production` (valeurs effacées par `sed`) et des seules valeurs non secrètes (`APP_ENV`, `APP_DEBUG`, `LOG_*`, `SESSION_*`, `TRUSTED_PROXIES`)
+- `docker compose ps`
+- `docker compose exec -T app php artisan route:list --except-vendor` et `route:list --json` (analyse des middlewares par `php -r`)
+- `docker compose exec -T app php artisan config:show session`, `config:show logging.channels.daily`, `config:show app`, `php artisan --version`
+- `docker compose exec -T app composer audit --locked`, `composer validate --no-check-publish`, `npm audit`, `npm audit --omit=dev`
+- `docker compose exec -T app sh -c 'ls -ld storage storage/logs bootstrap/cache; id'`, `grep clear_env /usr/local/etc/php-fpm.d/*`, `dpkg -l git unzip default-mysql-client`, lecture de `FilesystemServiceProvider.php`, `ServeFile.php`, `ReceiveFile.php` et `CompilesJson.php` du framework installé
+- `curl -D -` sur `http://127.0.0.1:8080/login`, `/route-inexistante`, `/up` ; `curl` GET et PUT sur `/storage/x.png` (404 renvoyé par nginx, rien d'écrit)
+- `grep` et lecture des fichiers du périmètre (`.gitignore`, `.dockerignore`, `.env.example`, `compose*.yaml`, `docker/`, `scripts/`, `artisan.cmd`, `bootstrap/app.php`, `config/`, `routes/`, `app/Http/`, `app/Services/DashboardService.php`, `app/Support/Period.php`, `resources/views/dashboard/`, `resources/js/`, `database/seeders/`, `docs/07-deployment/`)

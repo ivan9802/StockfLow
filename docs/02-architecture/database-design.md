@@ -1,6 +1,8 @@
 # Modèle de données StockFlow
 
-Ce document est le contrat de référence pour les migrations, les modèles Eloquent et les services. Toute modification passe par une décision consignée dans `DECISIONS.md`.
+Mis à jour le 19/11/2026 : alignement sur le code (T-908c).
+
+Ce document est le contrat de référence pour les migrations, les modèles Eloquent et les services. Toute modification passe par une décision consignée dans `DECISIONS.md`. La source de vérité du schéma est `database/migrations` (onze migrations) ; `docs/04-database/schema.sql` en est l'export lisible et `docs/04-database/initialisation.md` décrit la création, le chargement et la vérification de la base.
 
 ## Ce qui change par rapport au cahier des charges
 
@@ -97,7 +99,7 @@ audit_logs(PK id, #user_id NULL, action, auditable_type, auditable_id, descripti
 document_sequences(PK id, prefix, year, last_number, UNIQUE(prefix, year))
 ```
 
-S'y ajoutent les tables d'infrastructure livrées par Laravel : `sessions`, `cache`, `cache_locks`, `jobs`, `failed_jobs` et `notifications` (canal base de données, utilisé pour les alertes de stock dans l'interface). La table `password_reset_tokens` du squelette Laravel est retirée : sans envoi d'e-mail, un mot de passe oublié est réinitialisé par l'administrateur.
+S'y ajoutent `notifications` (canal base de données de Laravel, utilisé pour les alertes de stock dans l'interface) et les tables d'infrastructure du squelette Laravel : `migrations`, `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches` et `failed_jobs`. Les trois dernières ne servent pas (file d'attente `sync`, aucun traitement différé) mais sont gardées avec la migration d'origine. Au total, 27 tables : 20 tables de l'application, `notifications` et `document_sequences` comprises, et 7 tables d'infrastructure. La table `password_reset_tokens` du squelette Laravel est retirée : sans envoi d'e-mail, un mot de passe oublié est réinitialisé par l'administrateur.
 
 Le modèle est en troisième forme normale, avec trois dénormalisations assumées : `stock_before` et `stock_after` sur les mouvements (exigence de traçabilité), `unit_price` et `line_total` sur les lignes de vente (le prix du jour de la vente doit survivre à un changement de tarif), `total_amount` sur la vente (évite de recalculer à chaque liste).
 
@@ -169,10 +171,10 @@ Le modèle accepte un nombre quelconque d'emplacements. La démonstration en cr�
 | description | text | NULL | |
 | category_id | bigint | FK categories, RESTRICT | |
 | supplier_id | bigint | NULL, FK suppliers, SET NULL | Fournisseur principal |
-| purchase_price | int | CHECK >= 0 | Prix d'achat unitaire en F CFA |
-| selling_price | int | CHECK >= 0 | Prix de vente unitaire en F CFA |
+| purchase_price | int | non signé, sans CHECK | Prix d'achat unitaire en F CFA. La positivité est assurée par le type `INT UNSIGNED` et le mode SQL strict, pas par une contrainte `CHECK` |
+| selling_price | int | non signé, sans CHECK | Prix de vente unitaire en F CFA, même garantie |
 | alert_threshold | int | défaut 0 | Seuil d'alerte sur le stock total, tous emplacements confondus |
-| image_path | varchar(255) | NULL | Chemin relatif sur le disque `public` |
+| image_path | varchar(255) | NULL | Chemin relatif (`products/<nom aléatoire>`) sur le disque privé `local` (`storage/app/private`). L'image est servie par la route authentifiée `products.image`, jamais par une URL publique |
 | is_active | boolean | défaut true | Un produit inactif n'est plus vendable ni commandable |
 | deleted_at | timestamp | NULL | Suppression logique, refusée tant que le stock total est supérieur à zéro |
 
@@ -186,7 +188,7 @@ Le modèle accepte un nombre quelconque d'emplacements. La démonstration en cr�
 | quantity | int | défaut 0, CHECK >= 0 | Quantité disponible |
 | reorder_point | int | NULL | Seuil propre à l'emplacement (réassort du point de vente depuis l'entrepôt) |
 
-Contrainte `UNIQUE(product_id, warehouse_id)`. La ligne est créée à zéro pour chaque emplacement actif à la création du produit. Le type non signé et la contrainte `CHECK` forment le dernier filet : si un bogue du service tentait de passer sous zéro, MySQL rejetterait l'écriture et la transaction serait annulée.
+Contrainte `UNIQUE(product_id, warehouse_id)`. La ligne est créée à zéro pour chaque emplacement, actif ou non, à la création du produit, et pour chaque produit à la création d'un emplacement (`StockService::initializeLevels`, appelé par l'événement `created` des modèles) ; `StockService::lockLevels` crée aussi à zéro une ligne manquante. Le type non signé et la contrainte `CHECK` forment le dernier filet : si un bogue du service tentait de passer sous zéro, MySQL rejetterait l'écriture et la transaction serait annulée.
 
 ### stock_movements
 
@@ -356,11 +358,15 @@ Contrainte `UNIQUE(prefix, year)`.
 | stock_levels | UNIQUE `(product_id, warehouse_id)`, INDEX `(warehouse_id, quantity)` | Verrouillage ciblé d'une ligne, état de stock par emplacement |
 | stock_movements | INDEX `(product_id, warehouse_id, created_at)`, INDEX `(type, created_at)`, INDEX `created_at`, INDEX `(source_type, source_id)`, INDEX `reference`, INDEX `user_id` | Fiche de stock d'un produit, historique filtré, mouvements du jour, retour au document source |
 | sales | INDEX `sold_at`, INDEX `(user_id, sold_at)`, INDEX `(warehouse_id, sold_at)` | Ventes du jour, ventes d'un vendeur |
+| goods_receipts | INDEX `received_at` | Liste et filtres des réceptions par date, flux d'entrées du tableau de bord |
+| stock_transfers | INDEX `transferred_at` | Liste des transferts par date, flux de transferts du tableau de bord |
 | purchase_orders | INDEX `(status, expected_at)`, INDEX `supplier_id` | Commandes en attente |
 | inventory_sessions | INDEX `(warehouse_id, status)` | Contrôle de la session ouverte |
 | audit_logs | INDEX `created_at`, INDEX `(auditable_type, auditable_id)`, INDEX `(user_id, created_at)`, INDEX `action` | Consultation et filtres du journal |
 
-La recherche produit utilise un préfixe (`LIKE 'terme%'`) sur `sku`, `barcode` et `name`, ce qui exploite les index. Une recherche « contient » sur le libellé reste possible : sur 800 références, un balayage complet de la table prend quelques millisecondes, très loin du plafond de 500 ms. Un index `FULLTEXT` sur `name` pourra être ajouté si le catalogue dépasse quelques dizaines de milliers de lignes.
+Les index `user_id` de `stock_movements`, `supplier_id` de `products` et `supplier_id` de `purchase_orders` sont ceux que MySQL crée pour les clés étrangères. Toute clé étrangère a son index, même quand elle n'est pas citée ci-dessus (liste complète dans `docs/04-database/schema.sql`).
+
+La recherche produit (`Product::scopeSearch`) utilise un préfixe (`LIKE 'terme%'`) sur `sku` et `barcode`, ce qui exploite les index, et une recherche « contient » (`LIKE '%terme%'`) sur `name`, qui n'utilise pas l'index : sur 800 références, un balayage complet de la table prend quelques millisecondes, très loin du plafond de 500 ms. Un index `FULLTEXT` sur `name` pourra être ajouté si le catalogue dépasse quelques dizaines de milliers de lignes.
 
 ## Intégrité et accès concurrents
 
@@ -368,12 +374,27 @@ Le schéma et le service se répartissent le travail ainsi.
 
 | Règle | Garantie par le schéma | Garantie par le service |
 | :-- | :-- | :-- |
-| Pas de stock négatif | `INT UNSIGNED` et `CHECK (quantity >= 0)` | Lecture de la ligne sous `lockForUpdate()`, comparaison, refus avec `InsufficientStockException` |
+| Pas de stock négatif | `INT UNSIGNED`, mode SQL strict et `CHECK (quantity >= 0)` | Lecture de la ligne sous `lockForUpdate()`, comparaison, refus avec `InsufficientStockException` |
 | Un mouvement par variation | | `StockService` est le seul point d'écriture de `stock_levels.quantity` |
-| Historique intact | Aucune route ni méthode de mise à jour ; les modèles `StockMovement` et `AuditLog` lèvent une exception sur `update` et `delete` | |
-| Pas de doublon de SKU, de code-barres, de référence de document | Index `UNIQUE` | Validation `unique` dans les Form Requests pour un message propre |
+| Historique intact | Aucune contrainte de base (pas de déclencheur ni de droits restreints, D-023 proposée) | Aucune route ni méthode de mise à jour ; les modèles `StockMovement` et `AuditLog` lèvent `ImmutableRecordException` sur `update` et `delete` (trait `AppendOnly`) ; `stock:verify` détecte toute retouche |
+| Pas de doublon de SKU, de code-barres, de référence de document | Index `UNIQUE` | SKU, code-barres interne et références tirés de `document_sequences` ; validation `unique` du code-barres saisi dans `ProductRequest` pour un message propre |
 | Pas d'orphelin | Clés étrangères en `RESTRICT` sur tout ce qui porte de l'historique | Suppression logique des produits, fournisseurs et utilisateurs |
 | Réception plafonnée à la commande | `CHECK (quantity_received <= quantity_ordered)` | Verrou sur les lignes de commande pendant la réception |
+
+Contraintes `CHECK` réellement posées par les migrations (instructions SQL, donc propres à MySQL 8.0.16 et plus) :
+
+| Table | Contrainte | Règle |
+| :-- | :-- | :-- |
+| stock_levels | chk_stock_levels_quantity | quantity >= 0 |
+| stock_movements | chk_stock_movements_quantity | quantity > 0 |
+| purchase_order_items | chk_poi_ordered | quantity_ordered > 0 |
+| purchase_order_items | chk_poi_received | quantity_received <= quantity_ordered |
+| goods_receipt_items | chk_gri_quantity | quantity > 0 |
+| sale_items | chk_sale_items_quantity | quantity > 0 |
+| stock_transfers | chk_transfer_warehouses | from_warehouse_id <> to_warehouse_id |
+| stock_transfer_items | chk_transfer_items_quantity | quantity > 0 |
+
+Les autres montants et quantités (prix des produits, `unit_cost`, `unit_price`, `line_total`, `total_amount`, `alert_threshold`, `reorder_point`, `stock_before`, `stock_after`, quantités d'inventaire) sont des colonnes non signées sans `CHECK` : le mode SQL strict de Laravel rejette une valeur négative (erreur 1264). Le mode strict ne doit jamais être désactivé. `variance` est la seule colonne entière signée.
 
 Séquence type d'une opération à plusieurs lignes (vente de trois produits, par exemple) :
 
@@ -387,7 +408,7 @@ L'audit des opérations de stock est écrit dans la transaction (décision D-019
 
 Deux ventes simultanées sur le même produit se retrouvent en file sur le verrou de la ligne `stock_levels` : la seconde lit la quantité déjà diminuée par la première. L'ordre de verrouillage constant évite les interblocages entre deux paniers qui partagent des produits ; par précaution, `DB::transaction($callback, 3)` rejoue la transaction si MySQL en signale un.
 
-Les références de documents (`BS-2026-000128`) sont attribuées avant l'insertion par `ReferenceGenerator`, qui incrémente sous `lockForUpdate()` la ligne `(prefix, year)` de `document_sequences` dans la transaction de l'opération (décision D-017). La référence est donc connue au moment d'écrire le document et ses mouvements, ce qui évite toute mise à jour après coup d'une table en ajout seul. Les numéros se suivent sans doublon et une transaction annulée ne consomme pas de numéro.
+Les références de documents (`BS-2026-000128`) sont attribuées avant l'insertion par `ReferenceGenerator`, qui incrémente la ligne `(prefix, year)` de `document_sequences` dans la transaction de l'opération (décision D-017), en une seule instruction : `INSERT INTO document_sequences (prefix, year, last_number) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE last_number = last_number + 1`, suivie de la relecture de `last_number`. La ligne reste verrouillée jusqu'à la fin de la transaction. Un `SELECT ... FOR UPDATE` suivi d'un `INSERT` a été écarté : sur une série encore inexistante (première vente de l'année), il posait des verrous d'intervalle partagés qui faisaient s'interbloquer deux transactions, cas reproduit par les tests de concurrence. La référence est donc connue au moment d'écrire le document et ses mouvements, ce qui évite toute mise à jour après coup d'une table en ajout seul. Les numéros se suivent sans doublon et une transaction annulée ne consomme pas de numéro.
 
 ## Valorisation
 
@@ -395,4 +416,4 @@ La valeur du stock affichée au tableau de bord est la somme des `quantity × pu
 
 ## Jeu de démonstration
 
-Les seeders de démonstration créent les données en appelant les services métier, pas en insérant directement dans `stock_levels`. La règle « un mouvement par variation » reste ainsi vraie sur la base de démonstration, et un test peut le prouver en rejouant l'historique. Volumes visés : 6 catégories, 6 fournisseurs, 2 emplacements, 60 produits, 6 utilisateurs, plus de 150 mouvements étalés sur trois mois, avec des produits en stock normal, sous seuil et en rupture.
+Les seeders de démonstration créent les données en appelant les services métier, pas en insérant directement dans `stock_levels`. La règle « un mouvement par variation » reste ainsi vraie sur la base de démonstration, et un test peut le prouver en rejouant l'historique. Volumes obtenus le 19/11/2026 (`docs/04-database/initialisation.md`) : 7 catégories, 6 fournisseurs, 2 emplacements, 61 produits dont 60 actifs et 1 retiré de la vente, 6 utilisateurs, 1 344 mouvements étalés sur trois mois (92 jours), avec 45 produits actifs en stock normal, 8 sous le seuil et 7 en rupture. `DemoSeeder` refuse de s'exécuter quand `APP_ENV=production`.

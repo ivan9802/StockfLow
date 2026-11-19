@@ -50,9 +50,9 @@ Tout s'exécute dans le conteneur `app` : préfixer par `docker compose exec -T 
 - Démarrer : `docker compose up -d` (application sur http://localhost:8080, MySQL sur le port 3307).
 - Tests : démarrer d'abord la base de test, `docker compose --profile test up -d db-test` (plusieurs minutes après un redémarrage du poste), puis `php artisan test` (Unit et Feature, sur `db-test` en mémoire vive). L'arrêter ensuite avec `docker compose stop db-test` : elle ralentit fortement la machine. Concurrence : `php artisan test --testsuite=Concurrency`, quelques minutes.
 - Cohérence du stock : `php artisan stock:verify` (doit répondre « aucun écart »).
-- Base de démonstration : `php artisan migrate:fresh --seed --seeder=DemoSeeder` (plus de 10 minutes sous Windows).
+- Base de démonstration : `php artisan migrate:fresh --seed --seeder=DemoSeeder` (environ une minute mesurée, jusqu'à plus de 10 minutes sur un poste chargé).
 - Style : `vendor/bin/pint` avant chaque commit.
-- Assets : `npm run build` (2 à 3 minutes sous Windows). Une vue qui appelle `@vite` sur une nouvelle entrée exige de l'ajouter dans `vite.config.js`.
+- Assets : `npm run build` (une trentaine de secondes mesurée, davantage sur un poste chargé). Une vue qui appelle `@vite` sur une nouvelle entrée exige de l'ajouter dans `vite.config.js`.
 
 Pièges connus :
 - Ne jamais lancer deux suites de tests en même temps : elles partagent la base `db-test`, et le `migrate:fresh` de `RefreshDatabase` supprime les tables sous les processus de l'autre suite (constaté le 14/11/2026 sur les tests de concurrence).

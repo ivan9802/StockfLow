@@ -30,11 +30,12 @@ L'administrateur vous remet votre adresse e-mail et un mot de passe provisoire.
 
 1. Ouvrez l'adresse de StockFlow dans votre navigateur.
 2. Saisissez votre « Adresse e-mail » et votre « Mot de passe ». Le bouton « Afficher » montre le mot de passe saisi.
-3. Cochez « Rester connecté sur cet appareil » seulement sur un poste qui vous est personnel.
-4. Cliquez sur « Se connecter ».
-5. L'écran « Changer mon mot de passe » s'ouvre avec le message « Choisissez votre propre mot de passe ». Tant que vous ne l'avez pas fait, aucun autre écran n'est accessible.
-6. Saisissez le « Mot de passe actuel » (le provisoire), puis le « Nouveau mot de passe » : 12 caractères au moins. Une phrase de plusieurs mots fait un bon mot de passe.
-7. Cliquez sur « Enregistrer le mot de passe ».
+3. Cliquez sur « Se connecter ».
+4. L'écran « Changer mon mot de passe » s'ouvre avec le message « Choisissez votre propre mot de passe ». Tant que vous ne l'avez pas fait, aucun autre écran n'est accessible.
+5. Saisissez le « Mot de passe actuel » (le provisoire), puis le « Nouveau mot de passe » : 12 caractères au moins. Une phrase de plusieurs mots fait un bon mot de passe.
+6. Cliquez sur « Enregistrer le mot de passe ».
+
+La session se termine à la fermeture du navigateur, et après 120 minutes d'inactivité. Sur un poste partagé, déconnectez-vous et fermez le navigateur en fin de service.
 
 ### Changer son mot de passe plus tard
 
@@ -44,11 +45,11 @@ L'administrateur vous remet votre adresse e-mail et un mot de passe provisoire.
 
 ### Se déconnecter
 
-Cliquez sur votre nom, en haut à droite, puis sur « Se déconnecter ». Faites-le toujours sur un poste partagé.
+Cliquez sur votre nom, en haut à droite, puis sur « Se déconnecter ». Faites-le toujours sur un poste partagé, puis fermez le navigateur.
 
 ### Mot de passe oublié
 
-L'application n'envoie pas d'e-mail. Adressez-vous à votre administrateur : il vous attribue un nouveau mot de passe provisoire, que vous changerez à la connexion suivante.
+L'application n'envoie pas d'e-mail, comme le rappelle l'écran de connexion. Adressez-vous à votre administrateur : il vous attribue un nouveau mot de passe provisoire, que vous changerez à la connexion suivante.
 
 Après 5 essais erronés en une minute, la connexion est bloquée quelques instants. Patientez avant de réessayer.
 
@@ -70,7 +71,22 @@ Le menu de gauche dépend de votre profil. Sur tablette ou téléphone, il s'ouv
 
 À la connexion, le vendeur arrive directement sur le « Point de vente ». Le gestionnaire arrive sur le « Tableau de bord ».
 
-Le tableau de bord du vendeur montre « Mes ventes du jour », les « Produits en rupture », les « Produits sous le seuil » et « Mes dernières ventes ». Celui du gestionnaire montre la valeur du stock, les produits à réapprovisionner, les dernières opérations, la répartition par emplacement et les commandes en attente. Ses chiffres se mettent à jour tout seuls toutes les 30 secondes.
+### Le tableau de bord
+
+En haut à droite, choisissez la « Période » : « Aujourd'hui », « Hier », « Les 7 derniers jours », « Les 30 derniers jours » (par défaut), « Cette semaine », « La semaine dernière », « Ce mois-ci », « Le mois dernier », « Cette année », « L'année dernière » ou « Période personnalisée », qui fait apparaître les dates « Du » et « Au ». La case « Comparer à la période précédente », cochée par défaut, affiche sous chaque indicateur de « Sur la période » l'évolution en pourcentage par rapport à la période précédente : le mois précédent pour un mois, l'année précédente pour une année, sinon la période de même durée qui précède. La période de comparaison est rappelée sous le titre. Cliquez sur « Appliquer » pour une période personnalisée ; « Réinitialiser » revient aux 30 derniers jours. L'adresse de la page reprend la période choisie : vous pouvez la mettre en favori ou la transmettre.
+
+Le tableau de bord se compose de quatre parties :
+
+| Partie | Vendeur | Gestionnaire de stock |
+| :-- | :-- | :-- |
+| « État du stock » (à l'instant, indépendant de la période) | Unités en stock, références actives, sous le seuil, en rupture | Les mêmes, plus la valeur du stock au prix d'achat et les commandes en attente |
+| « Sur la période » | Mon chiffre d'affaires, mes ventes, panier moyen | Chiffre d'affaires, ventes, panier moyen, unités entrées, unités sorties, transferts, ajustements |
+| Graphiques | Mes ventes, produits les plus vendus, niveau de stock | Entrées et sorties de stock, ventes, produits les plus vendus, stock par emplacement, niveau de stock |
+| Activité récente | Mes dernières ventes | À réapprovisionner, alertes récentes, derniers mouvements, dernières ventes |
+
+Les graphiques affichent leurs valeurs au survol. Les cartes de « État du stock » mènent à l'écran correspondant (par exemple « En rupture » ouvre l'état des stocks filtré sur les ruptures).
+
+Quand la période choisie inclut aujourd'hui, les chiffres se mettent à jour tout seuls toutes les 30 secondes.
 
 Le nom de votre emplacement d'affectation, s'il y en a un, est rappelé en bas du menu.
 

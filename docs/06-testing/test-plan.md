@@ -6,10 +6,13 @@ Tous les tests tournent sur MySQL 8.4, jamais sur SQLite : les verrous, les cont
 
 | Suite | Dossier | Rôle | Lancement |
 | :-- | :-- | :-- | :-- |
-| Unit et Feature | `tests/Feature` | Règles métier, écrans, droits, exports | `php artisan test` |
+| Unit | `tests/Unit` | Calculs sans base de données : périodes du tableau de bord (`PeriodTest`, 26 tests) | `php artisan test --testsuite=Unit` |
+| Feature | `tests/Feature` | Règles métier, écrans, droits, exports | `php artisan test --testsuite=Feature` |
 | Concurrency | `tests/Concurrency` | Ventes simultanées par processus PHP séparés | `php artisan test --testsuite=Concurrency` |
 
-Une suite Unit pure n'a pas été retenue : les règles qui comptent (stock, verrous, transactions, droits) ne se vérifient qu'avec la base. Les calculs isolés (clé EAN-13, formats) sont couverts au travers des tests fonctionnels.
+`php artisan test` sans option lance Unit puis Feature (`defaultTestSuite="Unit,Feature"` dans `phpunit.xml`), jamais Concurrency.
+
+La suite Unit reste volontairement courte : les règles qui comptent (stock, verrous, transactions, droits) ne se vérifient qu'avec la base et relèvent de Feature. Elle couvre les calculs isolés qui n'ont pas besoin de MySQL, à ce jour les périodes du tableau de bord (`App\Support\Period`). Les autres calculs isolés (clé EAN-13, formats) sont couverts au travers des tests fonctionnels.
 
 ## Contenu par fichier
 

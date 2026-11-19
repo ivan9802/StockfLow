@@ -10,13 +10,15 @@ Au premier déploiement, l'application crée les deux emplacements (« Entrepôt
 
 L'adresse et le mot de passe de ce compte sont fixés ainsi :
 
-| Variable de `.env.production` | Rôle | Valeur par défaut |
-| :-- | :-- | :-- |
-| `ADMIN_EMAIL` | Adresse de connexion | `admin@stockflow.example` |
-| `ADMIN_NAME` | Nom affiché | `Administrateur` |
-| `ADMIN_PASSWORD` | Mot de passe initial | Tiré au hasard |
+| Variable | Fichier | Rôle | Valeur par défaut |
+| :-- | :-- | :-- | :-- |
+| `ADMIN_EMAIL` | `.env.production` | Adresse de connexion | `admin@stockflow.example` |
+| `ADMIN_NAME` | `.env.production` | Nom affiché | `Administrateur` |
+| `ADMIN_PASSWORD` | `.env.secrets` | Mot de passe initial | Tiré au hasard |
 
-Quand `ADMIN_PASSWORD` est absent, le mot de passe est généré et affiché une seule fois dans la sortie du script de déploiement, sur une ligne de la forme :
+`ADMIN_PASSWORD` se place dans `.env.secrets`, jamais dans `.env.production` : le script de déploiement refuse de continuer s'il l'y trouve (`docs/07-deployment/deployment.md`, section 3). Quand il est fourni, il n'est pas réaffiché.
+
+Quand `ADMIN_PASSWORD` est vide, le mot de passe est généré et affiché une seule fois dans la sortie du script de déploiement, sur une ligne de la forme :
 
 ```text
 Compte administrateur créé : admin@stockflow.example / xxxxxxxxxxxxxxxx (à changer à la première connexion).
@@ -29,7 +31,7 @@ Première connexion :
 1. Ouvrez l'adresse de l'application et connectez-vous avec ce compte.
 2. L'écran « Changer mon mot de passe » s'impose. Saisissez le mot de passe provisoire, puis un nouveau mot de passe de 12 caractères au moins.
 3. Cliquez sur « Enregistrer le mot de passe ».
-4. Si vous aviez fixé `ADMIN_PASSWORD`, retirez cette ligne de `.env.production`.
+4. Si vous aviez fixé `ADMIN_PASSWORD`, videz cette variable dans `.env.secrets`.
 5. Vérifiez les emplacements dans « Emplacements » et corrigez leur nom ou leur adresse si besoin (section 3).
 6. Créez les comptes du personnel (section 2).
 
@@ -182,11 +184,13 @@ La commande `stock:verify` rejoue tout l'historique des mouvements et vérifie d
 1. pour chaque produit et chaque emplacement, la somme des mouvements est égale au stock enregistré ;
 2. chaque mouvement part du stock laissé par le mouvement précédent.
 
-Elle ne modifie rien. Sur le serveur de production, depuis le dossier de l'application :
+Elle ne modifie rien. Sur le serveur de production, depuis le dossier de l'application (`/opt/stockflow`) :
 
 ```bash
-docker compose -f compose.prod.yaml --env-file .env.production exec app php artisan stock:verify
+scripts/prod-compose.sh exec app php artisan stock:verify
 ```
+
+`scripts/prod-compose.sh` lance Docker Compose avec les deux fichiers de configuration de production, `.env.production` et `.env.secrets`. Toutes les commandes de production passent par lui.
 
 En développement :
 
@@ -252,6 +256,15 @@ Une fois par mois :
 4. Dans « Utilisateurs », désactivez les comptes des personnes parties et vérifiez les comptes jamais connectés.
 5. Lancez `stock:verify`.
 6. Vérifiez avec le responsable technique que les sauvegardes de la nuit existent et que le test de restauration du mois a été fait (voir `backup-restore.md`).
+
+### Sessions
+
+- Une session se termine à la fermeture du navigateur, et après 120 minutes d'inactivité. Sur un poste partagé, fermez le navigateur en fin de service, en plus de vous déconnecter.
+- Désactiver un compte ou réinitialiser son mot de passe ferme ses sessions ouvertes (section 2).
+
+### Ce que l'application refuse en production
+
+Quand l'installation est configurée en production (`APP_ENV=production`), l'application refuse le chargement du jeu de démonstration et les commandes qui vident ou défont la base (`migrate:fresh`, `migrate:refresh`, `migrate:reset`, `migrate:rollback`, `db:wipe`), même forcées. Un retour à une version précédente passe par la restauration d'une sauvegarde (`docs/07-deployment/deployment.md`, section 8), jamais par ces commandes.
 
 ### Mots de passe
 

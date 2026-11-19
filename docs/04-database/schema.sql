@@ -1,5 +1,7 @@
 -- Schéma SQL de StockFlow (MySQL 8.4, InnoDB, utf8mb4).
 -- Généré par mysqldump --no-data sur une base migrée, le 14/11/2026.
+-- Contrôlé le 19/11/2026 (T-903) : identique, table par table, au schéma obtenu
+-- par php artisan migrate sur une base vierge (MySQL 8.4.13).
 -- Ne pas modifier à la main : la source de vérité est database/migrations.
 
 
